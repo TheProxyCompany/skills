@@ -35,12 +35,17 @@ Move execution. When in doubt, propose the change as a Move.
 **Log what matters.** Entries keep the graph alive. They are the journal:
 cheap, lightweight records attached to the things they are about.
 
-## The 8-8-7 System
+## The 8-7-7 System
+
+The active Trellis schema has 8 node types, 7 edge types, and 7 entry types.
+Legacy `category` nodes and `DYNAMIC` edges can still exist in old local data,
+but agents should not create or foreground them.
 
 ### Nodes
 
-**Category.** A domain or territory: Work, Health, People, Money, Fun.
-Categories group things through `HAS` edges. They are containers, not tasks.
+**Goal.** An outcome or objective the user is orienting around. Goals give
+actions purpose and scope; connect actions to goals with `FOR` when an action is
+in service of the outcome.
 
 **Action.** Work with defined scope. Actions have a phase:
 `planned`, `doing`, `done`, or `stopped`.
@@ -48,8 +53,9 @@ Categories group things through `HAS` edges. They are containers, not tasks.
 **Entity.** A person, organization, tool, place, or object that exists in the
 world. Entities participate through edges; they are not themselves work.
 
-**Event.** Something that happened or will happen at a specific moment. Events
-have an `occurs_at` timestamp and anchor the timeline.
+**Event.** A bounded moment, deadline, or time window. Events have an
+`occurs_at` timestamp and anchor the timeline. Ordinary observations about what
+happened should usually be entries, not events.
 
 **Condition.** A state of the world that affects other nodes. Conditions often
 represent blockers, constraints, risks, pressure, or enabling context.
@@ -65,8 +71,9 @@ float; they belong to something.
 
 ### Edges
 
-**HAS** expresses containment and ownership. A category HAS actions. A project
-HAS sub-tasks.
+**HAS** expresses real containment and ownership. Use it when one thing
+structurally contains another, such as a project/action HAS sub-tasks. Do not
+use HAS as a generic taxonomy bucket.
 
 **ABOUT** attaches entries to their subjects.
 
@@ -82,8 +89,9 @@ produces.
 
 **IMPACTS** expresses weighted causal influence.
 
-**DYNAMIC** is a freeform edge for relationships that do not fit the standard
-types. Use it rarely.
+Legacy `DYNAMIC` edges can still exist in old data, but do not create them.
+Choose one of the seven active edge types or leave the relationship unmodeled
+until it is clearer.
 
 ### Entries
 
@@ -147,7 +155,9 @@ edges make the problem visible to prioritization and future agents.
 - User mentions a blocker: model it as a condition or action dependency.
 - Conversation produces an insight: record a `takeaway` entry.
 - Status changes: update the action phase.
-- Something happened: create or update an event with `occurs_at`.
+- Something happened: attach an `update` or `note` entry; create or update an
+  event only for a deadline, appointment, trip, launch window, or other bounded
+  time anchor.
 - A measurement is taken: attach a `metric` entry to the relevant node.
 - User is deliberating: explore related graph context before suggesting a
   change.
