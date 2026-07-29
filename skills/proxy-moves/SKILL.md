@@ -10,7 +10,7 @@ description: >
 # Proxy Moves
 
 A Move is an agent proposal that waits for the user. It packages context,
-interactive inputs, content, diffs, confirmations, and a clear action boundary.
+interactive inputs, content, diffs, and a clear action boundary.
 Nothing important should happen until the user makes the Move.
 
 ## Core Shape
@@ -36,7 +36,6 @@ Common block types:
 - `choice`: one answer from options.
 - `multi_choice`: multiple answers from options.
 - `freeform`: open-ended user input.
-- `confirmation`: explicit confirmation copy.
 - `diff`: before/after comparison.
 - `section`: nested grouping of blocks.
 
