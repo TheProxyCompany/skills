@@ -23,6 +23,19 @@ and Moves that emerge from the discussion.
 - Moves can be authored from Party context and should link back to their source
   chat when possible.
 
+## Standing vs Session Parties
+
+A session is one live conversation. A standing party is a durable,
+schedulable definition: a folder at `$PROXY_DATA_ROOT/parties/<id>/` with a
+`party.yaml` manifest, a `playbook.md` (the kickoff text posted at every
+firing), `roles/*.md` prompts, and optional loadouts, output schemas, hooks,
+and a worksite block. The scheduler fires the definition on its cron; each
+firing seats the team into a fresh or rolling session. The canonical field
+reference for `party.yaml` is
+`grand-central/docs/party/manifest.md` — read it before hand-authoring a
+folder. Note: `goal:` is the deprecated spelling of `playbook:`; write
+`playbook:`.
+
 ## CLI Workflow
 
 Use `proxy-cli` when you need direct command-line control.
@@ -59,6 +72,24 @@ Inspect formats:
 proxy party format list -f human
 proxy party format roles <FORMAT_ID> -f human
 ```
+
+Fire a standing party definition now:
+
+```bash
+proxy party fire <DEFINITION_ID>
+proxy party session create --definition <DEFINITION_ID>
+```
+
+Standing-party definitions also have an HTTP surface on the local instance
+(grand-central, `/cli/party/definitions`): `GET /definitions` (list),
+`GET /definitions/{id}?files=true` (manifest plus folder files),
+`PUT /definitions/{id}` (write), `DELETE /definitions/{id}`,
+`POST /definitions/validate` (dry-run a folder write),
+`POST /definitions/{id}/fire`, `POST /definitions/{id}/seat` (seat without a
+kickoff), `POST /definitions/{id}/rollover`, `POST /definitions/reimport`,
+and `GET /definitions/next-fire?cron=<EXPR>` (next fire time in the
+instance's timezone). Where the `proxy party definition ...` verbs are
+available they wrap these routes one-to-one.
 
 ## Operating Rules
 
