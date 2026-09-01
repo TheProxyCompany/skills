@@ -39,6 +39,7 @@ After connecting, verify the tool surface before doing work:
 - `proxy_prioritize` for leverage-ranked work.
 - `proxy_create_move`, `proxy_list_moves`, `proxy_get_move`,
   `proxy_update_move`, and `proxy_make_move` for Moves.
+- `proxy_submit_feedback` for a user-approved diagnostic product report.
 
 If the client can list tools but tool calls fail, check:
 
@@ -61,3 +62,5 @@ If the client can list tools but tool calls fail, check:
 - Use `life-map` for graph modeling and Life Map edit etiquette.
 - Use `proxy-moves` for proposal/review workflows.
 - Use `proxy-parties` for conversations and multi-agent sessions.
+- Use `proxy-feedback` to gather evidence, redact logs, and submit a useful
+  product report.

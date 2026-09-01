@@ -197,6 +197,17 @@ proxy system navigate widget / party / attic
 proxy screenshot [--output path.png]
 ```
 
+### Product Feedback
+
+```bash
+proxy feedback submit --summary "Short title" --details "Observed and expected behavior" \
+  [--category bug|usability|feature|performance|other] \
+  [--reproduction "Steps"] [--log-excerpt "Redacted excerpt"]
+```
+
+Use the `proxy-feedback` skill before submitting diagnostics. Proxy attaches
+the authenticated device and app version automatically.
+
 ## Tips
 
 - **Always check `proxy system health` first** if commands fail — Proxy may not be running.
