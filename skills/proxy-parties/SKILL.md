@@ -27,14 +27,14 @@ and Moves that emerge from the discussion.
 
 A session is one live conversation. A standing party is a durable,
 schedulable definition: a folder at `$PROXY_DATA_ROOT/parties/<id>/` with a
-`party.yaml` manifest, a `playbook.md` (the kickoff text posted at every
-firing), `roles/*.md` prompts, and optional loadouts, output schemas, hooks,
-and a worksite block. The scheduler fires the definition on its cron; each
-firing seats the team into a fresh or rolling session. The canonical field
-reference for `party.yaml` is
-`grand-central/docs/party/manifest.md` — read it before hand-authoring a
-folder. Note: `goal:` is the deprecated spelling of `playbook:`; write
-`playbook:`.
+`party.yaml` manifest, `roles/*.md` prompts, an optional `playbook.md` (the
+kickoff text posted at every firing), and optional loadouts, output schemas,
+hooks, and a worksite block. The scheduler fires the definition on its cron;
+each firing seats the team into a fresh or rolling session. The field
+reference for `party.yaml` is the `PartyManifest` struct in
+`grand-central/src/party/standing.rs`; the built-in folders under
+`grand-central/src/party/parties/` are working examples. Read them before
+hand-authoring a folder. The manifest rejects unknown keys.
 
 ## CLI Workflow
 
@@ -63,7 +63,7 @@ proxy party session messages <SESSION_ID> --limit 50 -f human
 Send a user message:
 
 ```bash
-proxy party session send <SESSION_ID> --text "Review the launch plan." -f human
+proxy party session send <SESSION_ID> --content "Review the launch plan." -f human
 ```
 
 Inspect formats:
@@ -73,23 +73,40 @@ proxy party format list -f human
 proxy party format roles <FORMAT_ID> -f human
 ```
 
-Fire a standing party definition now:
+Standing party definitions:
 
 ```bash
-proxy party fire <DEFINITION_ID>
-proxy party session create --definition <DEFINITION_ID>
+proxy party definition list -f human        # id, name, device, cron, enabled, next fire, last fire, source
+proxy party definition get <DEFINITION_ID> -f human
+proxy party definition enable <DEFINITION_ID>
+proxy party definition disable <DEFINITION_ID>
+proxy party definition fire <DEFINITION_ID>     # same as: proxy party fire <DEFINITION_ID>
+proxy party definition rollover <DEFINITION_ID>
+proxy party devices -f human                # mesh devices a manifest `device:` can name
+proxy party save <SESSION_ID>               # write a live session as a standing party folder
 ```
 
-Standing-party definitions also have an HTTP surface on the local instance
-(grand-central, `/cli/party/definitions`): `GET /definitions` (list),
-`GET /definitions/{id}?files=true` (manifest plus folder files),
-`PUT /definitions/{id}` (write), `DELETE /definitions/{id}`,
-`POST /definitions/validate` (dry-run a folder write),
-`POST /definitions/{id}/fire`, `POST /definitions/{id}/seat` (seat without a
-kickoff), `POST /definitions/{id}/rollover`, `POST /definitions/reimport`,
-and `GET /definitions/next-fire?cron=<EXPR>` (next fire time in the
-instance's timezone). Where the `proxy party definition ...` verbs are
-available they wrap these routes one-to-one.
+`enable` and `disable` set `schedule.enabled` in the folder's `party.yaml`.
+The instance's file watcher re-imports the folder, and the command waits for
+the row to follow. Run them on the Proxy host. They refuse registry-managed
+(`cdn`) folders and mesh replicas, and they need a `schedule:` block with a
+`cron:`.
+
+`last_fired_at` is `null` until the definition fires once.
+
+The HTTP routes behind these verbs, on the local instance:
+
+- `GET /client/v1/party/definitions` lists every definition with `next_fire_at`.
+- `POST /client/v1/party/definitions/{id}/fire` fires one. A definition that
+  targets another device forwards the request there.
+- `GET /client/v1/party/devices` lists mesh devices.
+- `POST /client/v1/party/{conversation_id}/save` saves a live session as a folder.
+- `POST /cli/party/definitions/{id}/rollover` closes the current season and
+  opens the next.
+
+No HTTP route writes or deletes a definition folder. The folder is the source
+of truth: edit `party.yaml` (or use the Parties editor in the app) and the file
+watcher re-imports it.
 
 ## Operating Rules
 
