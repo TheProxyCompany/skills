@@ -200,13 +200,16 @@ proxy screenshot [--output path.png]
 ### Product Feedback
 
 ```bash
-proxy feedback submit --summary "Short title" --details "Observed and expected behavior" \
+proxy feedback submit --user-report "User's exact words" \
+  --summary "Short title" --details "Observed and expected behavior" \
   [--category bug|usability|feature|performance|other] \
-  [--reproduction "Steps"] [--log-excerpt "Redacted excerpt"]
+  [--reproduction "Steps"] [--log-excerpt "Redacted excerpt"] \
+  [--screenshot /path/from/proxy-screenshot.png | --no-screenshot]
 ```
 
 Use the `proxy-feedback` skill before submitting diagnostics. Proxy attaches
-the authenticated device and app version automatically.
+the authenticated device and app version automatically. When `--screenshot`
+is omitted, Proxy captures its current window unless `--no-screenshot` is set.
 
 ## Tips
 

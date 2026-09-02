@@ -39,7 +39,8 @@ After connecting, verify the tool surface before doing work:
 - `proxy_prioritize` for leverage-ranked work.
 - `proxy_create_move`, `proxy_list_moves`, `proxy_get_move`,
   `proxy_update_move`, and `proxy_make_move` for Moves.
-- `proxy_submit_feedback` for a user-approved diagnostic product report.
+- `proxy_submit_feedback` for a user-approved diagnostic product report with
+  the user's verbatim words, relevant logs, and a Proxy-window screenshot.
 
 If the client can list tools but tool calls fail, check:
 
