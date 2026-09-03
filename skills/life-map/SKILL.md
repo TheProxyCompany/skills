@@ -37,9 +37,9 @@ cheap, lightweight records attached to the things they are about.
 
 ## The 8-7-7 System
 
-The active Trellis schema has 8 node types, 7 edge types, and 7 entry types.
-Legacy `category` nodes and `DYNAMIC` edges can still exist in old local data,
-but agents should not create or foreground them.
+The Trellis schema has 8 node types, 7 edge types, and 7 entry types. Use only
+these; a `category` node or a `DYNAMIC` edge found in old data is not a type
+to copy.
 
 ### Nodes
 
@@ -89,9 +89,8 @@ produces.
 
 **IMPACTS** expresses weighted causal influence.
 
-Legacy `DYNAMIC` edges can still exist in old data, but do not create them.
-Choose one of the seven active edge types or leave the relationship unmodeled
-until it is clearer.
+Choose one of the seven edge types or leave the relationship unmodeled until it
+is clearer.
 
 ### Entries
 
