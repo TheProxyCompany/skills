@@ -1,0 +1,49 @@
+{
+  "kind": "synthetic_reviewer_regressions_not_live_instructions",
+  "version": 1,
+  "evaluation": "Manual review of reviewer claims. Known counterexamples supplied by cycle feedback; not held out. Structural validation is not a semantic test.",
+  "cases": [
+    {
+      "id": "two_concerns_are_not_two_commitments",
+      "source": "A supplied record alleges one equity-commitment conflict and a separate possible error about a visit. Neither allegation is independently verified.",
+      "candidate": "The reviewer says both drafts conflict with commitments already made.",
+      "expected": "reject_review_claim",
+      "reason": "Adds a second commitment conflict that the source does not supply."
+    },
+    {
+      "id": "unknown_deadline_is_not_zero_delay",
+      "source": "No deadline or additional delay cost is established. Waiting does delay communication.",
+      "candidate": "The reviewer says holding has no cost.",
+      "expected": "reject_review_claim",
+      "reason": "No measured deadline cost does not establish no cost; retain the known delay and uncertainty."
+    },
+    {
+      "id": "wrong_card_does_not_prove_fit",
+      "source": "All screenshots show card A. Card B has a short unrendered headline.",
+      "candidate": "The reviewer says card B has room to spare and its byline is absent, based on card A’s screenshots.",
+      "expected": "reject_review_claim",
+      "reason": "The screenshot receipt concerns the wrong card; B’s fit and byline remain unverified."
+    },
+    {
+      "id": "yes_no_title_can_use_freeform",
+      "source": "A draft has a yes/no-shaped title and a freeform response about that same single decision. No contradiction with the described consequence is identified.",
+      "candidate": "The reviewer fails consequence agreement solely because the answer is freeform.",
+      "expected": "reject_review_claim",
+      "reason": "Input type and headline syntax alone do not establish a mismatched consequence. Actual ambiguity would need evidence."
+    },
+    {
+      "id": "resolve_label_is_move_level",
+      "source": "The Move API defines top-level resolve_label and its handler stores it. The block schema does not define it. The actual response route is not verified.",
+      "candidate": "The reviewer calls resolve_label an invented control because it is absent from the block schema.",
+      "expected": "reject_review_claim",
+      "reason": "Inspect the owning API layer. The label is supported; direction-only semantics remain unverified and are a separate publication blocker."
+    },
+    {
+      "id": "empty_id_search_is_not_absence",
+      "source": "An ID search returned no result; a direct get by that ID returns the action.",
+      "candidate": "The reviewer concludes the action is missing and should be created.",
+      "expected": "reject_review_claim",
+      "reason": "The direct receipt establishes existence. Empty search did not justify creating a duplicate."
+    }
+  ]
+}
