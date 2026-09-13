@@ -84,3 +84,77 @@ wrap the page in a 390 px iframe or use device emulation. Run
 `scripts/overflow-probe.js` to list anything wider than the viewport.
 Charts and tables belong inside an `overflow-x: auto` box with a minimum
 width; SVGs should carry a `viewBox` and no fixed `width`/`height`.
+
+## 6. Every Mac has the same bytes
+
+A published bundle is replicated to every Mac paired to the account, and
+the edge serves it from whichever Mac it reaches. After `proxy page publish`
+on one Mac, confirm the others landed it and serve identical bytes. `SLUG`
+is the slug; `MACS` lists ssh hosts for the other Macs, where the CLI is
+`~/.local/bin/proxy`. Run from the Mac that published.
+
+```bash
+SLUG=<slug>; MACS="proxy-terminal-1"
+
+# 6a. the mesh record landed and the bytes are on disk: state=live everywhere
+#     (source=origin on the publishing Mac, replica on the others)
+cat > /tmp/page-state.sh <<'EOF'
+~/.local/bin/proxy page list --json | jq -r --arg s "$1" \
+  '.pages[] | select(.slug==$s) | "\(.state) \(.source) \(.version // "-" | .[0:8])"'
+EOF
+echo "local $(bash /tmp/page-state.sh "$SLUG")"
+for h in $MACS; do
+  until ssh "$h" "bash -s $SLUG" < /tmp/page-state.sh | grep -q '^live '; do sleep 3; done
+  echo "$h $(ssh "$h" "bash -s $SLUG" < /tmp/page-state.sh)"
+done
+
+# 6b. sha256 and mtime of every file, plus pages.json: identical on every Mac
+cat > /tmp/page-tree.sh <<'EOF'
+cd ~/Proxy/pages/$1 || exit 1
+find . -type f | sort | xargs shasum -a 256
+find . -type f | sort | xargs stat -f '%N %Fm'
+shasum -a 256 ~/Proxy/pages/pages.json | sed 's#/Users/[^ ]*/pages.json#pages.json#'
+EOF
+bash /tmp/page-tree.sh "$SLUG" > /tmp/local.tree
+for h in $MACS; do
+  ssh "$h" "bash -s $SLUG" < /tmp/page-tree.sh > "/tmp/$h.tree"
+  diff /tmp/local.tree "/tmp/$h.tree" && echo "$h identical"
+done
+
+# 6c. each Mac's own origin: same ETag, Content-Length and version per file,
+#     a different x-proxy-pages-device
+for f in index.html og.jpg; do
+  echo "== $f"
+  curl -sI "http://127.0.0.1:51711/client/p/$SLUG/$f" \
+    | grep -i '^etag\|^content-length\|^x-proxy-pages-device\|^x-proxy-pages-version'
+  for h in $MACS; do
+    ssh "$h" "curl -sI http://127.0.0.1:51711/client/p/$SLUG/$f \
+      | grep -i '^etag\|^content-length\|^x-proxy-pages-device\|^x-proxy-pages-version'"
+  done
+done
+
+# 6d. through the public URL: the answering Mac and the version it served
+curl -sSI "https://<username>.proxy.ing/p/$SLUG/" | grep -i '^HTTP\|^x-proxy-pages'
+```
+
+Expect `live` on every Mac, an empty diff per Mac (same sha256 per file,
+mtimes pinned to the publish second, the same `pages.json`), the same
+`ETag`, `Content-Length` and `x-proxy-pages-version` per file with a
+different `x-proxy-pages-device` per Mac, and through the public URL an
+`x-proxy-pages-version` equal to the `version:` the publish printed (the
+first eight hex digits match). Any difference in a file's bytes is a bug;
+a differing mtime alone is a cache miss (a different ETag on that Mac), not
+wrong bytes.
+
+A Mac stuck at `pending` for more than a minute: `~/Proxy/logs/glue.log`
+on that Mac says why (`grep 'mesh pages:' ~/Proxy/logs/glue.log`).
+`mesh pages: refusing <slug> <reason>` means the record failed validation
+there and is not retried until the slug is republished; `mesh pages: bundle
+did not land; will retry` (with `slug`, `attempts`, `retry_in_secs` and
+`reason`) is a fetch failure, retried with backoff (5 s, doubling to a
+600 s cap; a new mesh link or a drain that applied ops for that slug resets
+it, so a live link can take up to 10 min after one failure). `unrecorded`
+means a bundle with no mesh record, a page from before replication that
+the sweep has not adopted yet. `source` follows the newest publish of the
+slug: after a republish from another Mac, the Mac that first published it
+shows `replica`, and the newer publish is the one every Mac serves.
