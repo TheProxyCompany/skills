@@ -87,9 +87,15 @@ width; SVGs should carry a `viewBox` and no fixed `width`/`height`.
 
 ## 6. Every Mac has the same bytes
 
+`page.json` in the folder is the local receipt (`url`, `version`,
+`visibility`, `warnings`); `page.error.txt` beside it means the folder did
+not publish and says why. `proxy page list` prints `visibility` between
+`published_at` and `source`; `--json` adds `error`.
+
 A published bundle is replicated to every Mac paired to the account, and
-the edge serves it from whichever Mac it reaches. After `proxy page publish`
-on one Mac, confirm the others landed it and serve identical bytes. `SLUG`
+the edge serves it from whichever Mac it reaches. After a page publishes
+on one Mac (its folder went quiet with an `index.html` in it, or `proxy
+page publish` ran), confirm the others landed it and serve identical bytes. `SLUG`
 is the slug; `MACS` lists ssh hosts for the other Macs, where the CLI is
 `~/.local/bin/proxy`. Run from the Mac that published.
 
