@@ -5,11 +5,17 @@ description: "Publish an HTML page or Artifact bundle to a proxy.ing address as 
 
 # Proxy Pages
 
-A page is served from the user's own Mac at
+A page is served from the user's own Macs at
 `https://<username>.proxy.ing/p/<slug>/`. Proxy copies the bundle into
 `<data root>/pages/<slug>/`, rewrites the head with link-preview tags,
-produces the preview image, and the proxy.ing edge keeps a durable copy so
-the link, its image and its assets keep working while the laptop sleeps.
+produces the preview image, and replicates the finished bundle to every Mac
+paired to the account: the proxy.ing edge serves it from whichever of those
+Macs it reaches, byte-identical, and keeps a durable copy so the link, its
+image and its assets keep working while every laptop sleeps. Publish and
+`remove` from any of them; a replica lands within seconds on a live mesh
+link (worst case one 60 s tick when the fetch succeeds first time; a failed
+fetch retries with backoff up to 10 min, see `references/verify.md`
+section 6; a Mac that is offline lands it when it next syncs).
 
 ```
 https://<username>.proxy.ing/p/<slug>/          index.html
@@ -91,7 +97,24 @@ proxy page remove <slug>
 - After publishing, the CLI fetches the page, `og.jpg` and `icon.png`
   through the public edge (warming the cache and the durable copy, and
   clearing the 60 s cold marker an app restart leaves); `--no-warm` skips
-  it. Publishing the same slug again replaces the bundle.
+  it. Publishing the same slug again replaces the bundle. Every page
+  response names the bundle it came from in `x-proxy-pages-version`; a warm
+  answered by a Mac that has not landed this publish yet is reported as a
+  warning (`still serving an older version`), not as warmed: the edge stored
+  that older copy and refreshes it within 5 min once the mesh lands the
+  publish there.
+- The publish prints `version: <8 hex>` (the sha256 of the bundle's
+  `page.json`). That is what the mesh replicates: the last publish of a slug
+  wins on every Mac, including a publish made from another Mac, and the
+  loser's bundle is replaced without further warning.
+- `proxy page list` prints six tab-separated columns: `slug`, `url`,
+  `title`, `published_at`, `source` (`origin` on the Mac that published the
+  page, `replica` elsewhere) and `state` (`live` once this Mac serves the
+  bytes the mesh record describes, `pending` while it is still landing them,
+  `unrecorded` for a bundle with no mesh record). A missing field prints
+  `-`. `--json` carries the same fields plus `version` and `origin_device`.
+- `proxy page remove <slug>` works from any paired Mac and withdraws the
+  page from all of them.
 
 Head tags the publisher owns and rewrites on every publish: title,
 description, canonical, `og:*` (type, url, title, description, site_name,
@@ -115,7 +138,9 @@ curl -sS "https://cardyb.bsky.app/v1/extract?url=$(python3 -c 'import urllib.par
 
 Expect 200s, `image/jpeg` under 307,200 bytes, and cardyb returning the
 title and an image. For iMessage, `scripts/lp-preview.swift` renders the
-card exactly as Messages will draw it, with no message sent.
+card exactly as Messages will draw it, with no message sent. With more than
+one Mac paired, section 6 of `references/verify.md` checks that every Mac
+has landed the page and serves the same bytes.
 
 ## Sending the link on iMessage
 
@@ -131,12 +156,37 @@ has the script and how to confirm the payload was embedded.
 
 - `Cache-Control: public, max-age=300, s-maxage=300` from the device; the
   edge keeps a copy per POP for 5 min and a durable KV copy for 30 days,
-  refreshed on every origin fetch. A 503 `x-proxy-pages: offline` means the
-  Mac is unreachable and no durable copy exists yet; a 60 s cold window
+  refreshed on every origin fetch. A 503 `x-proxy-pages: offline` means no
+  Mac is reachable and no durable copy exists yet; a 60 s cold window
   follows an app restart. Warm after publishing.
-- Unpublish is lazy: `proxy page remove` deletes the local bundle; the next
-  fetch of each path through a live device evicts its edge and KV copies.
-  Do not publish secrets: everything under `/p/` is public.
+- Replication window: the edge walks the account's Macs in priority order
+  and takes the first one that answers. A Mac that has not landed a slug yet
+  answers 404 and the walk moves on to the next Mac (a 404 from one Mac
+  never evicts the durable copy while another Mac is cold or has not
+  answered). On a republish, a Mac that has not landed the new version
+  still answers 200 with its previous bytes (`x-proxy-pages-version` names
+  the old bundle); the walk stops there and the edge stores that copy for
+  up to 5 min (KV until the next origin fetch). The publish warm reports
+  this as `still serving an older version`. `x-proxy-pages-device` on every
+  response names the Mac that answered. Within seconds on a live link
+  (worst case one 60 s tick when the fetch succeeds first time; a failed
+  fetch retries with backoff up to 10 min, see verify.md section 6), every
+  Mac serves the same bytes; `proxy page list` shows `pending` until then.
+- Unpublish: `proxy page remove` withdraws the page from every Mac (the
+  removal replicates like a publish). Each Mac that has seen the removal
+  answers 404 with `x-proxy-pages-state: removed`, and the next fetch of
+  each path through a live Mac then evicts its edge and KV copies, even
+  while another Mac is cold. A removed page stays in KV while any routable
+  Mac is cold unless a live Mac answers that `removed` 404; a POP that has
+  not re-fetched keeps its edge copy for up to 5 min. Do not publish
+  secrets: everything under `/p/` is public.
+- The mesh record is the truth about what is published. Deleting or
+  renaming `~/Proxy/pages/<slug>` by hand is undone by the mesh, which
+  re-materializes the bundle from the record and its content store; use
+  `proxy page remove`. A hand edit to a file inside that directory is
+  neither replicated nor noticed (only `page.json` is compared with the
+  record), so that one Mac silently serves different bytes: edit the source
+  and republish.
 - Crawlers cache cards by URL. Republishing changes `og.jpg?v=`; the page
   URL itself stays cached on X (~7 days), Meta (Sharing Debugger refreshes),
   Telegram (@WebpageBot refreshes), Slack (an hour per channel).
@@ -147,7 +197,14 @@ has the script and how to confirm the payload was embedded.
 - A slug with uppercase, underscores or a leading hyphen is rejected.
 - Scripts in an Artifact bundle you did not write still run in every
   viewer's browser.
-- The page dir under `<data root>/pages/` is owned by the publisher: edit the
-  source and republish.
+- The page dir under `<data root>/pages/` is owned by the mesh: a deletion
+  is undone, a hand edit is not replicated. Edit the source and republish,
+  or `proxy page remove`.
+- A Mac running with `PROXY_MESH_PARTY_AUTHORS=none` (or one that does not
+  trust the publishing Mac) never lands pages from the others; its own
+  publishes still replicate outward.
+- Replication needs a proxy.ing username on the Mac (`proxy ing` pairing);
+  without one the Mac lands nothing and never rebuilds its `/p/` listing
+  (`proxy page list` still shows the rows, `pending` forever).
 - Headless Chrome 152's `--screenshot` never exits; `scripts/render-card.sh`
   waits for the PNG to stop growing and kills it.
