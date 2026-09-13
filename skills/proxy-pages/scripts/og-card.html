@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+@font-face{font-family:"Berkeley Mono";src:url("fonts/BerkeleyMono-Regular.woff2") format("woff2");font-weight:400}
+@font-face{font-family:"Berkeley Mono";src:url("fonts/BerkeleyMono-SemiBold.woff2") format("woff2");font-weight:600}
+html,body{margin:0;width:1200px;height:630px;overflow:hidden;background:#0d0a08}
+.card{position:relative;width:1200px;height:630px}
+.card img{position:absolute;inset:0;width:1200px;height:630px;object-fit:cover;object-position:50% 38%}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,10,8,0) 38%,rgba(13,10,8,.55) 66%,rgba(13,10,8,.86) 100%)}
+.text{position:absolute;left:64px;right:64px;bottom:76px;color:#F1E9D2}
+.eyebrow{font-family:"Berkeley Mono",monospace;font-weight:600;font-size:19px;letter-spacing:.16em;text-transform:uppercase;color:rgba(241,233,210,.82);margin:0 0 18px 2px}
+h1{font-family:"Cardo",Georgia,serif;font-weight:700;font-size:82px;line-height:1.02;margin:0;letter-spacing:-.005em;text-shadow:0 2px 24px rgba(0,0,0,.45);max-width:980px;text-wrap:balance}
+.rule{width:96px;height:3px;background:#C9A24B;margin:26px 0 0 3px}
+</style></head><body><div class="card">
+<img src="painting.png">
+<div class="scrim"></div>
+<div class="text"><p class="eyebrow">{{EYEBROW}}</p><h1>{{TITLE}}</h1><div class="rule"></div></div>
+</div></body></html>

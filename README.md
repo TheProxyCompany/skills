@@ -9,4 +9,5 @@ tools.
 - `proxy-cli` - Control a running Proxy instance from the command line.
 - `proxy-mcp` - Connect agent clients to Proxy's MCP server.
 - `proxy-moves` - Create, revise, and resolve user-reviewed Moves.
+- `proxy-pages` - Publish a page to a proxy.ing address with a link preview that renders everywhere.
 - `proxy-parties` - Work with multi-agent Party sessions and source chats.
