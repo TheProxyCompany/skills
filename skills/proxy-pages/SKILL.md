@@ -64,7 +64,7 @@ Publishing is the last step. A page people will share needs, in order:
    only (no spaces); no symlinks; 16 MiB per file, 64 MiB per page.
 2. **A painting, not a screenshot.** Generate an original image for the page
    with the newest image model, in the aspect ratios you will use:
-   `proxy image generate "<prompt>" --size 1536x1024 --quality high -o landscape.png`
+   `proxy image generate "<prompt>" --provider openai --size 1536x1024 --quality high -o landscape.png`
    (also `1024x1536` for the phone hero, `1024x1024` for a square icon).
    Prompt shape that works: an oil painting, edge to edge, no frame, no
    border, no text, photorealistic brushwork, depicting the abstract ideas
