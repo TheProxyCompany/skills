@@ -4,10 +4,12 @@ description: >
   Control a running Proxy instance via the proxy CLI. Use when: running or creating
   party sessions, sending messages to agents, firing standing parties, managing
   agents/loadouts/models, checking system health, configuring harnesses/integrations,
-  inspecting Work and workspaces, or any programmatic interaction with Proxy.
+  inspecting Work and workspaces, generating or editing images, generating video,
+  or any programmatic interaction with Proxy.
   Triggers: "create a party", "send to proxy", "proxy session", "talk to agents",
   "start a party about X", "fire the party", "proxy model", "proxy harness",
-  "proxy config", "proxy work".
+  "proxy config", "proxy work", "proxy image", "proxy video", "generate an image",
+  "generate a video".
   Requires Proxy to be running (port 51711 default, or $PROXY_PORT).
 ---
 
@@ -16,11 +18,11 @@ description: >
 Binary: `proxy`. `~/.local/bin/proxy` links to the copy inside the installed app bundle (`Proxy.app/Contents/MacOS/proxy-cli`); a worktree build carries its own copy in its bundle. Build only through `Proxy/scripts/dev_cycle.sh`.
 Requires: Proxy running on localhost:51711 (or `$PROXY_PORT`).
 
-`proxy --help` and `proxy <group> [<command>] -h` are the source of truth. Below the top level use `-h`: a nested `--help` falls through to the agent shortcut (last section) and errors. This reference was regenerated from the installed binary on 2026-09-02; when a command is missing here, `-h` wins.
+`proxy --help` and `proxy <group> [<command>] -h` are the source of truth. Below the top level use `-h`: a nested `--help` falls through to the agent shortcut (last section) and errors. This reference was regenerated from the installed binary on 2026-09-02, and the global flags, `party fire`, harness, page, image and video entries were brought up to the CLI source on 2026-09-20; when a command is missing here, `-h` wins.
 
 ## Global Flags
 
-- `-p, --port <PORT>` — HTTP port (default 51711, reads `$PROXY_PORT`)
+- `--port <PORT>` — HTTP port (default 51711, reads `$PROXY_PORT`). Long-only: `-p` is `party fire --prompt`.
 - `-f, --format json|human` — output format (default json)
 - `--host <HOST>` — target host (default 127.0.0.1)
 
@@ -84,13 +86,15 @@ proxy party definition list -f human      # id, name, device, cron, enabled, nex
 proxy party definition get <ID>
 proxy party definition enable <ID>        # sets schedule.enabled in party.yaml
 proxy party definition disable <ID>
-proxy party definition fire <ID> [--timeout SECS] [--json]   # fire now and stream to quiescence
-proxy party fire <ID> [--timeout SECS] [--json]              # same thing
+proxy party definition fire <ID> [-p TEXT|@FILE|-] [-d DEVICE] [--timeout SECS] [--json]   # fire now and stream to quiescence
+proxy party fire <ID> [-p TEXT|@FILE|-] [-d DEVICE] [--timeout SECS] [--json]              # same thing
 proxy party definition rollover <ID>      # close the current season, open the next
 proxy party devices                       # mesh devices a manifest `device:` can name
 proxy party save <SESSION_ID>             # write a live session as a standing party folder
 proxy party bench [--definition ID | --conversation ID | --agents NAMES "prompt"] [--rounds N] [--json]
 ```
+
+`-p/--prompt` is the request this firing carries out (literal text, `@path` to read a file, or `-` for stdin); it is posted as the kickoff ahead of the playbook. `-d/--device` runs this one firing on another mesh device (label, device id, or unique hex prefix) and overrides the manifest's `device:` pin. `--timeout` exits 124 if the party is not quiescent in time.
 
 ## Commands Reference
 
@@ -158,11 +162,11 @@ proxy provider key set <PROVIDER> <KEY>
 proxy provider key remove / status / test <PROVIDER>
 ```
 
-### Harnesses (Claude Code, Codex, OpenCode)
+### Harnesses (CLI agent runtimes)
 
 ```bash
 proxy harness list
-proxy harness status <ID>                 # claude-code, codex, opencode
+proxy harness status <ID>                 # claude-code, codex, opencode, openclaw, gemini-cli, hermes-agent, pi
 proxy harness configure / unconfigure <ID>
 proxy harness probe <ID>                  # ACP initialize/session handshake
 proxy harness connect / disconnect <ID>
@@ -252,12 +256,52 @@ proxy system update check / status / install     # Sparkle updates
 proxy screenshot [--output path.png]
 ```
 
-### Images, proxy.ing, feedback
+### Images and video
+
+Both run on provider API keys stored with `proxy provider key set <PROVIDER> <KEY>`; `proxy image catalog` and `proxy video catalog` list the providers, their models and defaults, and which have a key.
 
 ```bash
-proxy image generate "<prompt>" [--provider openai] [--model gpt-image-2] [--size 1024x1024] [-n N] [-o PATH]
+proxy image catalog
+proxy image generate "<prompt>" [--provider openai|google|fireworks|fal] [--model ID] [--size S] \
+  [--quality auto|low|medium|high|xhigh|max] [--background transparent|opaque|auto] \
+  [--output-format png|jpeg|webp] [-n N] [-o PATH] [--input '{"seed":7}']
+proxy image edit "<prompt>" --image PATH [--provider ID] [--model ID] [--size S] \
+  [--output-format png|jpeg|webp] [-n N] [-o PATH] [--input JSON]
+
+proxy video catalog
+proxy video generate "<prompt>" [--provider fal|minimax] [--model ID] [--image PATH|URL] [--last-frame PATH|URL] \
+  [--duration SECS] [--resolution R] [--aspect W:H] [-o PATH] [--input JSON] [--no-wait] [--timeout SECS]
+proxy video status <JOB_ID> [--wait] [--timeout SECS]
+proxy video list [--limit N]                     # newest first, default 50
+proxy video cancel <JOB_ID>
+```
+
+- **Leave a flag off to get the configured default.** `--provider`, `--model`, `--size`, `--duration`, `--resolution` and `--aspect` are sent only when given. Otherwise Proxy uses the `image.provider` / `image.model` / `video.provider` / `video.model` settings (`proxy config set video.provider fal`), then the provider's default model. Built-in providers: images default to `openai`, video to `fal`.
+- **Model ids are the provider's own.** OpenAI images: `gpt-image-2.5-sunburst` (quality), `gpt-image-2.5-flare` (fast), `gpt-image-2`; `--quality xhigh|max` is GPT Image 2.5 only. fal images: an endpoint id such as `fal-ai/qwen-image-2.1`. Video: a fal endpoint id such as `minimax/h3/text-to-video` (MiniMax H3, 5-15s, 768P or 2K), or `MiniMax-H3` with `--provider minimax` (4-15s; MiniMax H3 needs a pay-as-you-go key). The catalog is the source of truth.
+- **`--size`** is `WIDTHxHEIGHT` or `auto` for OpenAI (edges a multiple of 16, at most 3840); for fal a preset such as `square_hd`, or `W:H` on fal models that take an aspect ratio. Google and Fireworks ignore it.
+- **`--input`** merges provider-native fields last into the provider request, as a JSON object (fal and minimax). Use it for anything without a flag.
+- **`-o`** is a file or a directory, resolved against your shell's working directory. Without it files land in `<data dir>/images/` or `<data dir>/videos/`. With `-f human` stdout is one written path per line.
+- **`--image` / `--last-frame`** take a local PNG, JPEG or WEBP of at most 20 MB, or an `http(s)://` URL. The CLI reads a local file and Proxy uploads it to the provider; fal uploads are publicly readable by URL. `--last-frame` needs `--image` and a model that takes first and last frames.
+- **Video is a job.** `generate` prints `video job <JOB_ID> submitted (...)` on stderr as soon as the provider accepts it (the job is billed from there, per second of output), then waits. Stdout gets only the final job object, or the paths with `-f human`. `--no-wait` returns the queued job at once. After `--timeout` (default 1800s) the CLI exits 124 with the last job on stdout and the job keeps running: resume with `proxy video status <JOB_ID> --wait`. Ctrl-C only stops waiting; `proxy video cancel <JOB_ID>` cancels at the provider, and a job that already started may still be billed.
+- **Exit codes:** 0 done; 1 the job failed or was cancelled, or Proxy stayed unreachable; 2 Proxy refused the request (no stored key, a flag the model does not take, the provider rejected the submit, unknown job id), and a refused submit creates no job; 124 `--timeout` ran out.
+
+### Pages (proxy.ing)
+
+```bash
+proxy page publish <PATH> --slug <SLUG> --title <TEXT> [--description TEXT] [--og-image IMAGE] \
+  [--username U] [--visibility draft|link|public] [--no-warm] [--json]
+proxy page list [--json]
+proxy page remove <SLUG>                         # removes it from every paired Mac
+```
+
+`<PATH>` is one `.html` file or a directory with `index.html`; the page is served at `https://<username>.proxy.ing/p/<slug>/`. The `proxy-pages` skill covers the folder interface and link previews.
+
+### proxy.ing pairing and feedback
+
+```bash
 proxy ing pair [--username U] [--no-wait]        # pair this Mac with its proxy.ing address
 proxy ing status
+proxy ing tunnel refresh [--username U]          # re-fetch this Mac's tunnel and restart cloudflared
 proxy feedback submit --user-report "User's exact words" \
   --summary "Short title" --details "Observed and expected behavior" \
   [--category bug|usability|feature|performance|other] \
