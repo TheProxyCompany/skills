@@ -1,0 +1,100 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="./proxy.css">
+<div class="content" style="display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;">
+  <div style="display: flex; align-items: baseline; gap: 10px;">
+    <div class="metric" id="best">–</div>
+    <div class="dim" id="metricName"></div>
+    <div class="dim" id="trend" style="margin-left: auto;"></div>
+  </div>
+  <div class="dim" id="lastKept" style="margin-top: 2px;"></div>
+  <svg id="chart" style="flex: 1; width: 100%; margin-top: 10px;" preserveAspectRatio="none"></svg>
+  <div class="dim" id="footer" style="margin-top: 6px;"></div>
+</div>
+<script>
+const el = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+
+function fmt(v, decimals) {
+  if (v == null || isNaN(v)) return '–';
+  return Number(v).toLocaleString(undefined, { maximumFractionDigits: decimals ?? 4 });
+}
+
+function render(d) {
+  const min = (d.direction || 'min') === 'min';
+  const points = (d.points || []).filter(p => p.status !== 'crash' && p.value != null);
+  const crashes = (d.points || []).filter(p => p.status === 'crash').length;
+  const kept = points.filter(p => p.status === 'keep');
+
+  // Running best: the frontier line.
+  let best = null;
+  const frontier = points.map(p => {
+    if (p.status === 'keep' && (best === null || (min ? p.value < best : p.value > best))) {
+      best = p.value;
+    }
+    return best;
+  });
+
+  el('metricName').textContent = (d.metric || 'metric') + (d.unit ? ' (' + d.unit + ')' : '');
+  el('best').textContent = fmt(best, d.decimals);
+  const last = kept[kept.length - 1];
+  el('lastKept').textContent = last ? 'Last keep: ' + (last.note || 'experiment ' + last.n) : 'No keeps yet';
+  if (d.baseline != null && best != null) {
+    const delta = min ? d.baseline - best : best - d.baseline;
+    const pct = Math.abs(delta / d.baseline * 100);
+    el('trend').textContent = (delta >= 0 ? (min ? '▼ ' : '▲ ') : '· ') + fmt(pct, 2) + '% vs baseline';
+    el('trend').className = delta > 0 ? 'ok' : 'dim';
+  }
+  el('footer').textContent =
+    points.length + ' experiments · ' + kept.length + ' kept' +
+    (crashes ? ' · ' + crashes + ' crashed' : '') +
+    (d.updated ? ' · ' + new Date(d.updated).toLocaleTimeString() : '');
+
+  // Chart
+  const svg = el('chart');
+  svg.innerHTML = '';
+  if (points.length < 2) return;
+  const W = 1000, H = 360, padX = 14, padY = 16;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  const values = points.map(p => p.value).concat(d.baseline != null ? [d.baseline] : []);
+  let lo = Math.min(...values), hi = Math.max(...values);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const span = hi - lo;
+  lo -= span * 0.08; hi += span * 0.08;
+  const x = i => padX + i / (points.length - 1) * (W - 2 * padX);
+  const y = v => padY + (1 - (v - lo) / (hi - lo)) * (H - 2 * padY);
+
+  const add = (tag, attrs) => {
+    const node = document.createElementNS(NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    svg.appendChild(node);
+    return node;
+  };
+
+  if (d.baseline != null) {
+    add('line', { x1: padX, x2: W - padX, y1: y(d.baseline), y2: y(d.baseline),
+      stroke: 'rgba(255,255,255,0.18)', 'stroke-dasharray': '4 5', 'stroke-width': 1.5 });
+  }
+
+  // Frontier step line.
+  let path = '';
+  frontier.forEach((v, i) => {
+    if (v == null) return;
+    const px = x(i), py = y(v);
+    path += path === '' ? 'M' + px + ' ' + py : ' H' + px + ' V' + py;
+  });
+  if (path) add('path', { d: path, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5, opacity: 0.9 });
+
+  points.forEach((p, i) => {
+    if (p.status === 'keep') {
+      add('circle', { cx: x(i), cy: y(p.value), r: 5.5, fill: 'var(--accent)' });
+    } else {
+      add('circle', { cx: x(i), cy: y(p.value), r: 3, fill: 'rgba(255,255,255,0.22)' });
+    }
+  });
+}
+
+// The Proxy app calls proxyRefresh() when a file in the folder changes.
+window.proxyRefresh = () =>
+  fetch('./data.json', { cache: 'no-store' }).then(r => r.json()).then(render);
+window.proxyRefresh();
+</script>
