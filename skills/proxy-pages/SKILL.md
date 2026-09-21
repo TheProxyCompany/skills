@@ -202,8 +202,9 @@ hidden, and its menu publishes it or makes it private. Leave a live page a
   `PROXY_CLI` set. Collector files are dotfiles on purpose: they stay on the
   Mac that wrote them, are never served, and never leave with a published
   page, so an ssh target or a token in `.collect.sh` stays private.
-- Make live pages with plain file writes. `proxy page publish` replaces the
-  folder with a copy and would drop the dotfiles.
+- Make live pages with plain file writes in the page's folder.
+  `proxy page publish` copies a source folder without its dotfiles, so a
+  collector written anywhere else never arrives.
 - Every change to `data.json` is a page version that replicates to the
   person's other Macs. Tick as often as the number is worth, not faster.
 
