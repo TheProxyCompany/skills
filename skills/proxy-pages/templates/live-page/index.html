@@ -1,0 +1,37 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="./proxy.css">
+<div class="content">
+  <div id="status" style="margin-top: 4px; color: var(--accent);">Loading…</div>
+  <div class="bar" style="margin-top: 12px;"><div id="fill" style="width: 0%;"></div></div>
+  <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 8px;">
+    <div class="metric" id="metric">–</div>
+    <div class="dim" id="updated"></div>
+  </div>
+  <div class="label" style="margin-top: 12px;">Log</div>
+  <div class="log" id="log" style="max-height: 120px; margin-top: 4px;"></div>
+</div>
+<script>
+const el = id => document.getElementById(id);
+
+function render(d) {
+  el('status').textContent = d.status;
+  el('status').className = d.state === 'done' ? 'ok' : d.state === 'error' ? 'err' : '';
+  el('status').style.color = d.state === 'running' ? 'var(--accent)' : '';
+  const pct = d.total ? Math.round(100 * d.progress / d.total) : 0;
+  el('fill').style.width = pct + '%';
+  el('metric').textContent = d.progress + '/' + d.total;
+  el('updated').textContent = 'updated ' + new Date(d.updated).toLocaleTimeString();
+  el('log').textContent = (d.log || []).slice(-8).join('\n');
+}
+
+// The empty catch is deliberate: it covers the moment data.json is mid-write.
+async function refresh() {
+  try {
+    const r = await fetch('./data.json', { cache: 'no-store' });
+    render(await r.json());
+  } catch {}
+}
+// The Proxy app calls proxyRefresh() when a file in the folder changes.
+window.proxyRefresh = refresh;
+refresh();
+</script>

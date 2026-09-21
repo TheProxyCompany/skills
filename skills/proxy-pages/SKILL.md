@@ -1,6 +1,6 @@
 ---
 name: proxy-pages
-description: "Publish an HTML page or Artifact bundle to a proxy.ing address as a shareable link whose preview card (title, painting, icon) renders on iMessage, X, Instagram, WhatsApp, Slack, Discord, Telegram, LinkedIn, Bluesky and the rest. Use when asked to share, publish or host a page, report, artifact or site on proxy.ing, to make a link preview look right, or to change who can see a page."
+description: "Make a page: a private card in the Proxy app's Pages tab that can update live while you work (what a home-screen widget used to be), or an HTML page or Artifact bundle published to a proxy.ing address as a shareable link whose preview card (title, painting, icon) renders on iMessage, X, Instagram, WhatsApp, Slack, Discord, Telegram, LinkedIn, Bluesky and the rest. Use when asked to show progress, numbers or a dashboard the person can watch, to share, publish or host a page, report, artifact or site on proxy.ing, to make a link preview look right, or to change who can see a page."
 ---
 
 # Proxy Pages
@@ -9,7 +9,9 @@ description: "Publish an HTML page or Artifact bundle to a proxy.ing address as 
 `~/Proxy/pages/<slug>/`. Write `index.html` there and the running Proxy app
 records it, replicates it to every Mac paired to the account, and serves it
 at `https://<username>.proxy.ing/p/<slug>/`. There is no command to run;
-`proxy page publish` exists as a convenience and does exactly this.
+`proxy page publish` exists as a convenience and does exactly this. Every
+page on the Mac, drafts included, is also a card in the Proxy app under
+Home > Pages, where its owner publishes it or makes it private.
 
 ```
 ~/Proxy/pages/<slug>/
@@ -156,6 +158,55 @@ linked as `og.jpg?v=<hash>` so crawlers that cache images by URL (X ~7
 days, Meta ~30) refetch after a republish. `references/platforms.md` says
 which platform reads which tag.
 
+## Live pages: a page that updates while you work
+
+What used to be a home-screen widget is a page. Use one for any task the
+person may want to watch, a recurring run that produces metrics, or numbers
+that change over time. The card in Home > Pages can be moved, resized and
+hidden, and its menu publishes it or makes it private. Leave a live page a
+`draft` unless they ask otherwise.
+
+- Put the numbers in `data.json` and read it with
+  `fetch('./data.json', { cache: 'no-store' })`. Update the page by
+  rewriting `data.json`, never `index.html`.
+- Define `window.proxyRefresh = () => { /* fetch and re-render */ }`. The
+  app calls it when a file in the folder changes and the card re-renders in
+  place; without it the card reloads. No timers, no polling.
+- Write atomically through a dot-prefixed temp file, then `mv`:
+  `... > .data.json.tmp && mv .data.json.tmp data.json`. A temp file without
+  the dot would be recorded as a page version of its own.
+- The card is the frame: a transparent `body`, no outer border, no repeated
+  title, and a fluid layout that reads from 260 to 900 px wide.
+  `templates/proxy.css` carries the app's colours and a few classes (use its
+  variables, no hardcoded colours); `templates/live-page/` is a progress
+  card; `templates/experiment-chart/` plots one dot per experiment for
+  hill-climbing work (`data.json`: `metric`, `unit`, `direction` min|max,
+  `decimals`, `baseline`, `points: [{n, value, status: keep|discard|crash,
+  note}]`). Copy one, with `proxy.css` beside it:
+
+  ```bash
+  SKILL=<this skill's folder>; DIR=~/Proxy/pages/my-task   # ~/Proxy-Dev, ~/Proxy-wt-N for other instances
+  mkdir -p "$DIR" && cp "$SKILL"/templates/live-page/* "$SKILL"/templates/proxy.css "$DIR"/
+  ```
+
+- For anything a script can measure (system stats, API polls, log tails,
+  counts), add a collector and no model is in the loop:
+
+  ```yaml
+  # ~/Proxy/pages/<slug>/.collector.yaml
+  run: ./.collect.sh
+  every: 60          # seconds, at least 15; a run is killed at min(every, 120 s)
+  ```
+
+  It runs with the folder as its working directory, with `PROXY_PORT` and
+  `PROXY_CLI` set. Collector files are dotfiles on purpose: they stay on the
+  Mac that wrote them, are never served, and never leave with a published
+  page, so an ssh target or a token in `.collect.sh` stays private.
+- Make live pages with plain file writes. `proxy page publish` replaces the
+  folder with a copy and would drop the dotfiles.
+- Every change to `data.json` is a page version that replicates to the
+  person's other Macs. Tick as often as the number is worth, not faster.
+
 ## Verify before you share
 
 `references/verify.md` has the commands. Minimum, once `page.yaml` says
@@ -220,8 +271,10 @@ has the script and how to confirm the payload was embedded.
 - Query strings are ignored and paths are case-exact (`Index.html` is a 404).
 - A slug with uppercase, underscores, spaces or a leading hyphen is not a
   page folder at all: Proxy ignores it. Rename it.
-- Proxy's own transient files in the folder are dot-prefixed (`.og-render.png`,
-  `.page.json.tmp`); never ship dotfiles yourself, they are not served.
+- Dotfiles are never served, recorded or replicated. That makes them the
+  place for a collector and its scratch files (and for Proxy's own
+  `.og-render.png`, `.page.json.tmp`), and the wrong place for anything the
+  page needs to load.
 - Scripts in an Artifact bundle you did not write still run in every
   viewer's browser.
 - A Mac running with `PROXY_MESH_PARTY_AUTHORS=none` (or one that does not
