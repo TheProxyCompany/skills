@@ -29,8 +29,8 @@ meaningful changes, create a Move with `proxy_create_move` so the user can
 review and approve it.
 
 **Use direct writes sparingly.** `proxy_create`, `proxy_update`, and
-`proxy_link` are for explicit user requests, low-risk bookkeeping, or approved
-Move execution. When in doubt, propose the change as a Move.
+`proxy_link` are for explicit user requests, low-risk bookkeeping (recording a
+wish the user stated is that), or approved Move execution. When in doubt, propose the change as a Move.
 
 **Log what matters.** Entries keep the graph alive. They are the journal:
 cheap, lightweight records attached to the things they are about.
@@ -129,6 +129,39 @@ before they become real.
 Use `proxy_create`, `proxy_update`, and `proxy_link` only when the user has
 clearly asked for a direct edit or when executing an approved Move.
 
+## Wishes Become Conditions
+
+This is the default way work enters the Life Map. When the user says something
+they wish were true, in any words ("it should", "I want", "this needs to",
+"why doesn't it"), they have named a state of the world that is not true yet.
+Record it as that, before doing the work and without being asked:
+
+1. Search first. The wish may already be a condition, or part of an action.
+2. Create a `condition` for each separate wish. Name it as the fact the user
+   wants to be true ("The app opens in under a second"), not as
+   a task. Start its description with `UNMET as of <date>`, quote the user's own
+   words, say what would make it true, and say what is true today.
+3. Create an `action` that changes it, with the phase it is really in:
+   `planned`, `doing` or `done`. One action can change several conditions, and
+   an existing action is better than a new one.
+4. Wire three edges. The action `MAKES` the condition. The work the wish
+   belongs to (a project, a goal, an open pull request) `NEEDS` the
+   condition, with `met: false` on the edge, and `HAS` the action.
+5. When the action is done, the condition is true: set the action's phase to
+   `done`, rewrite the condition's first words to `MET as of <date>` with what
+   proves it, and set `met: true` on the `NEEDS` edge. The agent that finished
+   the work does this in the same turn. A condition only the user can judge
+   ("the code reads as mine") stays unmet until they say so.
+
+These are direct writes, not Moves: the user stated the wish, and the nodes
+only record it. Doing the work is a separate question. A recorded wish is not
+permission to build it, so ask or propose a Move unless the user also asked for
+the work.
+
+If the user has a second address the work belongs to, such as their company's,
+say whether the nodes were written there too. Never report them as mirrored
+when they were written to one map.
+
 ## Recording Problems
 
 When the user reports something broken or wrong:
@@ -151,6 +184,8 @@ edges make the problem visible to prioritization and future agents.
   create or update.
 - User makes a decision: record a `decision` entry on the relevant node.
 - User asks what to focus on: run `proxy_prioritize`.
+- User says something they wish were true: record a condition and the action
+  that changes it (Wishes Become Conditions).
 - User mentions a blocker: model it as a condition or action dependency.
 - Conversation produces an insight: record a `takeaway` entry.
 - Status changes: update the action phase.
