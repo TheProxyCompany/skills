@@ -141,20 +141,31 @@ Record it as that, before doing the work and without being asked:
    wants to be true ("The app opens in under a second"), not as
    a task. Start its description with `UNMET as of <date>`, quote the user's own
    words, say what would make it true, and say what is true today.
-3. Create an `action` that changes it, with the phase it is really in:
-   `planned`, `doing` or `done`. One action can change several conditions, and
-   an existing action is better than a new one.
+3. Create an `action` that changes it and link it, with the phase it is really
+   in: `planned`, `doing`, `done` or `stopped`. One action can change several
+   conditions, and an existing action is better than a new one.
 4. Wire three edges. The action `MAKES` the condition. The work the wish
    belongs to (a project, a goal, an open pull request) `NEEDS` the
    condition, with `met: false` on the edge, and `HAS` the action.
-5. When the action is done, the condition is true: set the action's phase to
-   `done`, rewrite the condition's first words to `MET as of <date>` with what
-   proves it, and set `met: true` on the `NEEDS` edge. The agent that finished
-   the work does this in the same turn. A condition only the user can judge
-   ("the code reads as mine") stays unmet until they say so.
 
-These are direct writes, not Moves: the user stated the wish, and the nodes
-only record it. Doing the work is a separate question. A recorded wish is not
+How an action moves, once it exists:
+
+- An action's phase changes only through a Move. Starting it, finishing it and
+  stopping it are each a decision the user makes: propose the change with
+  `proxy_create_move`, about the action, and change the phase when the Move is
+  made. Creating the action in the phase it is already in is not a change.
+- An action is done by a party: Proxies working it together, not one agent
+  alone. Each fork in the work that needs the user's judgment or authority is
+  a Move the party creates as it reaches it, so the Moves on an action are the
+  path taken down its decision tree.
+- When the Move that marks the action `done` is made, the condition is true:
+  rewrite the condition's first words to `MET as of <date>` with what proves
+  it, and set `met: true` on the `NEEDS` edge, in the same turn. A condition
+  only the user can judge ("the code reads as mine") stays unmet until they
+  say so.
+
+Recording the wish is a direct write, not a Move: the user stated it, and the
+nodes only record it. Doing the work is a separate question. A recorded wish is not
 permission to build it, so ask or propose a Move unless the user also asked for
 the work.
 
