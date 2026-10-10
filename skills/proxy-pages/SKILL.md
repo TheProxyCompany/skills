@@ -26,12 +26,6 @@ description, canonical, `og:*`, `twitter:*`, and the icon links when the
 document has none) are injected as `index.html` is served, from
 `page.json`, so the bytes on disk stay yours and an edit is just an edit.
 
-## Root PR pamphlets
-
-Use the layout in `proxy-web-services/sites/official/agentic-software-factory/index.html`
-for future root PR pamphlets. It opens from **Open pamphlet** on the dashboard.
-The dashboard's PR page keeps its own layout.
-
 Keep the existing colors and fonts. Put the PR's videos first, then four tabs:
 
 - **Description:** explain what changes and why in plain English. No code blocks.
