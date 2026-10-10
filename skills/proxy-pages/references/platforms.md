@@ -84,4 +84,4 @@ JavaScript.
   hosts have one.
 - On Cloudflare, `s-maxage` disables `stale-while-revalidate` and
   `stale-if-error`; a zone-level Browser Cache TTL can override `max-age`
-  (jckwind.proxy.ing currently rewrites to `max-age=14400`).
+  (proxy.ing addresses currently rewrite to `max-age=14400`).
