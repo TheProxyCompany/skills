@@ -26,6 +26,23 @@ description, canonical, `og:*`, `twitter:*`, and the icon links when the
 document has none) are injected as `index.html` is served, from
 `page.json`, so the bytes on disk stay yours and an edit is just an edit.
 
+Keep the existing colors and fonts. Put the PR's videos first, then four tabs:
+
+- **Description:** explain what changes and why in plain English. No code blocks.
+- **Diagram:** show how the parts fit together.
+- **Full workflow:** show the complete process, including decisions and return paths.
+- **Code changes:** group actual code by file and purpose. Follow each block with a
+  native `details` dropdown titled **What this code does**.
+
+The agent preparing the pamphlet writes each explanation from the code under
+review. Identify the source commit and link to the full files at that commit.
+Replace PR #45's content, links, media and metadata for each new pamphlet; keep
+the layout and tab behavior. These are authored pages, not a live diff viewer.
+
+For these pamphlets, keep the video-first layout instead of adding a painted hero.
+Check both videos, all four tabs, the dropdowns and phone-width scrolling before
+publishing. Company-host publication follows `proxy-web-services/ops/official/README.md`.
+
 ## Visibility: who can see it
 
 Set in `page.yaml`:
