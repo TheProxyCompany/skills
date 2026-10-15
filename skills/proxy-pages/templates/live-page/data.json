@@ -1,0 +1,8 @@
+{
+  "status": "Starting",
+  "state": "running",
+  "progress": 0,
+  "total": 100,
+  "updated": "2026-08-04T00:00:00Z",
+  "log": ["Initialized"]
+}
