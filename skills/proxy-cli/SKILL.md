@@ -105,9 +105,30 @@ a copy of all equipment from the agent's existing loadout. Keep `backend_model`
 null when using a catalog `model_id` so a stale custom model does not override
 it. For multiple seats of the same agent, inspect each participant's
 `loadout_id` and its entry in `proxy loadout list`; `agent self` selects one
-seat. Verify model, harness, skills, and integrations before sending work.
+seat. Inspect each loadout's equipment with `proxy loadout skill list <ID>`
+and `proxy loadout integration list <ID>`; `loadout list` does not include
+equipment. Verify model, harness, skills, and integrations before sending work.
+Also inspect the participant's `config_overrides.seat_model`: a prior seat
+override takes precedence over the loadout's model. Clear a stale override
+when configuring the model through the loadout, preserving unrelated config
+keys (`set-config` with a participant ID replaces that seat's config object).
 For standing parties, put this configuration in `loadouts/*.md` and bind it
-from `team.<role>.loadout` (see `party-maker`).
+from `team.<role>.loadout`; omit or clear a conflicting `roles.<role>.model`
+(see `party-maker`).
+
+When changing an already seated participant, verify its current `loadout_id`
+after editing the definition. `set-config` changes overrides, not the loadout
+binding, and `add-participant` creates another seat. The CLI has no in-place
+loadout rebind command; use the party seat's loadout selector in the app to
+preserve its identity. Manifest-owned seats can reconcile on a later wake,
+but manually added seats are protected. Do not send work through the old
+binding or add a duplicate to work around this.
+
+If creating/tuning/equipping fails, stop before seating or sending work.
+Inspect the returned loadout ID (or `proxy loadout list`) before retrying:
+creation and tuning are separate requests, so a failed tuning step can leave
+a partially configured loadout. Repair that party-owned loadout rather than
+creating another identity or blindly repeating creation.
 
 ### Session config (working directory)
 

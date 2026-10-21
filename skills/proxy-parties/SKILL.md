@@ -62,6 +62,9 @@ reusable identity, never merely to satisfy a model or role request.
 The `proxy-cli` skill has the concrete loadout/seat commands; `party-maker`
 covers file-backed loadouts for standing parties. Verify the seated agent,
 loadout, model, harness, skills, and integrations before firing the party.
+Check existing role/seat model overrides too: `roles.<role>.model` becomes
+`config_overrides.seat_model` and overrides the selected loadout. Clear a
+stale model override while preserving unrelated seat configuration.
 
 List sessions:
 

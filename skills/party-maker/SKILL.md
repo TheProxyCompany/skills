@@ -11,7 +11,7 @@ description: >
 # Party Maker
 
 A standing party is a folder. The folder is the whole definition: one
-manifest, one goal file, one prompt file per role, optional loadout files.
+manifest, an optional playbook, one prompt file per role, optional loadout files.
 Proxy imports the folder, validates it, and fires it on a schedule or on
 command. Make the folder right and the party just works.
 
@@ -20,7 +20,7 @@ command. Make the folder right and the party just works.
 ```
 <data root>/parties/<id>/
   party.yaml          # the manifest (required)
-  goal.md             # kickoff prompt (required to fire)
+  playbook.md         # optional standing instructions included at kickoff
   roles/<role>.md     # one prompt file per role (required per role)
   loadouts/<name>.md  # optional per-seat loadout overlays
 ```
@@ -39,14 +39,13 @@ before you consider the party made.
 ```yaml
 id: night-watch            # must equal the folder name
 name: Night Watch          # display name
-goal: goal.md              # kickoff prompt file; required to fire
-flow: 'scout -> [worker*3] ~> reviewer'
+flow: 'scout -> worker ~> reviewer'
 schedule:                  # omit entirely for fire-on-command rites
   cron: "0 6 * * *"        # standard 5-field cron, device-local time
   enabled: false           # ship disabled; the user turns it on
 device: "Proxy Terminal 1" # device label or id-hex; omit = authoring device
 memory: compact            # conversation memory mode
-anchor: proxy              # agent the session anchors to
+anchor: <LIFE_MAP_NODE_ID>  # optional node whose context informs each firing
 hooks:                     # optional shell hooks
   pre_fire: scripts/warm.sh
   post_settle: scripts/report.sh
@@ -62,7 +61,7 @@ roles:                     # role -> behavior
   scout:
     prompt: roles/scout.md
     tools: null            # null = defaults for the role kind
-    model: null            # null = the agent's own default model
+    model: null            # null = use the selected seat loadout's model
     effort: high           # null | low | medium | high
     produces: []
   worker:
@@ -93,7 +92,8 @@ The `flow:` string is the party's turn structure:
 - `[a, b]` parallel group: dispatched together
 - `~>` quiescence: left side settles, right side reviews the result
 - `=>` broadcast gate: left's posts are gated by the right role
-- `worker*3` multiplicity: three seats of one role; bare `*` = unbounded
+- Each role runs the seats explicitly listed in `team`. Legacy `worker*3`
+  syntax is accepted, but does not create three seats or limit the team.
 - `,` separates independent clauses
 
 Real examples:
@@ -104,16 +104,21 @@ coordinator -> [worker-a, worker-b, worker-c] ~> coordinator
 [participant*] ~> moderator, participant => moderator
 ```
 
+For three workers, list three bindings under `team.worker`, reusing the
+existing agent with the desired loadout for each seat. Do not create extra
+agent identities to get extra seats.
+
 Design the flow first. It is the org chart of the party: who starts, who
 fans out, who has the last word. A party without a clear last word settles
 nothing.
 
 ## What goes into a good party
 
-**Goal.** `goal.md` is the kickoff message every session starts from. State
-the mission, the definition of done, and what the party must NOT do. One
-page maximum. The goal is for every seat; role prompts carry the per-seat
-detail.
+**Playbook.** `playbook.md` supplies standing instructions at kickoff; role
+prompts carry per-seat detail. Put the party's method, expected results, and
+boundaries here. `goal:` is retired and ignored; `goal.md` is not read at
+kickoff. Use `anchor:` for a Life Map node whose goals and actions supply
+current work, not for an agent identity.
 
 **Roles.** One prompt file per role. Each prompt answers: what this seat
 reads first, what it must produce, and when it should stay silent. Roles
@@ -131,6 +136,12 @@ integrations, display name, and prompt. Use one when the same agent serves
 different seats differently. Bind it explicitly from the team seat; creating
 a loadout does not select it automatically. Do not change the agent's global
 default to configure a party.
+
+`roles.<role>.model` overrides the loadout at request time. When selecting the
+model through a loadout, omit that role override or set it to `null`; keep it
+only when intentionally consistent with the requested model/provider/harness.
+For an existing live seat, inspect `config_overrides.seat_model` as well as
+`loadout_id`—a matching loadout alone does not prove the effective model.
 
 ### Model requests reuse agents
 
@@ -158,7 +169,7 @@ team:
 ```
 
 Then write `loadouts/fable-worker.md` (confirm the model and harness IDs in
-the local catalogs; use a party-specific loadout name to avoid collisions):
+the local catalogs; use a name containing the party and role to avoid collisions):
 
 ```markdown
 ---
@@ -176,10 +187,24 @@ Implement the assigned change and report the verification results.
 The owning agent is inferred from the referencing team seat. `model_id` is
 the catalog model; omit `model` (the custom backend override) when using it.
 Fill `skills` with discovered skill IDs and `integrations` with the connected
-tools this role needs. File loadouts declare their own equipment; do not
-assume they copy the agent's existing loadout. Reuse an existing matching
-loadout when appropriate. Before firing, verify the imported loadout's
-agent, model, harness, skills, and integrations and the team's binding to it.
+tools this role needs. New file loadouts receive default equipment, not a
+copy of the agent's existing loadout. These lists are not exact allowlists:
+imports preserve non-file skills, and integrations are additive, so removing
+an integration from the file does not unequip it. Inspect `proxy loadout skill
+list <ID>` and `proxy loadout integration list <ID>`; explicitly unequip
+unwanted extras only on a loadout owned by this party. Reuse an existing
+matching loadout without changing shared configuration.
+
+File loadouts are keyed by `(agent_id, name)`, not folder path. Different
+parties or roles needing independent configuration must use different names.
+An import that collides with a user-created loadout can be skipped; verify
+the imported row's model, provider, harness, equipment, and team binding
+before firing. Repair an incomplete loadout rather than creating new agents.
+For a live session, also verify its participant `loadout_id`: editing the
+manifest does not immediately rebind every seat. Manifest-owned seats can
+reconcile on a later wake; manually added seats are protected. Use the app's
+seat loadout selector for an immediate in-place change, preserving the seat's
+identity, and verify the binding before sending work.
 
 ### Completing the definition
 
@@ -214,7 +239,7 @@ Common failures and their fixes:
 
 | Symptom | Fix |
 |---------|-----|
-| Party asks the user the same question every run | Move the answer into `goal.md`; the party should already know canon |
+| Party asks the user the same question every run | Move standing instructions into `playbook.md` and current facts into the anchored Life Map node |
 | A seat posts generic filler | Sharpen its role prompt's "stay silent unless" clause, or cut the seat |
 | Runs settle nothing | Add a `~> synthesizer` last word and a required output |
 | Costs too much | Downgrade fan-out seats' agents; reserve `effort: high` for the settler |
