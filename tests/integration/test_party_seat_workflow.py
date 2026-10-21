@@ -1,6 +1,6 @@
 """Replay the documented seat workflow through the real CLI into a local fixture.
 
-Run: python3 -m unittest discover -s tests -v
+Run: python3 -m unittest discover -s tests/integration -v
 Optional: PROXY_CLI=/path/to/proxy-cli
 No requests reach a running Proxy instance; each test owns an ephemeral port.
 """
@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 CLI = os.environ.get("PROXY_CLI") or shutil.which("proxy")
 text = (ROOT / "skills/proxy-cli/SKILL.md").read_text()
 section = text.split("### Configure a seat without growing the roster", 1)[1]
@@ -39,7 +39,7 @@ commands = [
 class PartySeatWorkflowTests(unittest.TestCase):
     def setUp(self):
         if not CLI:
-            self.skipTest("Install proxy or set PROXY_CLI to the CLI binary")
+            self.fail("Install proxy or set PROXY_CLI to the CLI binary")
         self.requests = []
         self.fail_tuning = False
         self.loadout = {"id": "loadout-fable", "agent_id": "claude", "is_active": False}
