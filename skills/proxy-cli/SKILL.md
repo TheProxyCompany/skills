@@ -28,6 +28,21 @@ Use `-f human` for readable output. Use default json when parsing responses prog
 
 ## Core Workflow: Run a Party
 
+Reuse existing roster agents. A requested model or role is not a new agent:
+Fable means Claude with a Fable model and the `claude-code` harness; Gemini
+Argon means Gemini with an Argon model; Astra means Codex with an Astra model
+and the `codex` harness. Honor an explicitly requested compatible harness;
+otherwise retain Gemini's configured compatible harness. Discover actual IDs
+with `proxy agent list`, `proxy model list`, and `proxy harness list` rather
+than inventing them. If an alias is ambiguous or unavailable, report that;
+creating a new agent does not make a model available.
+
+Do not use `proxy agent create` for a party's model, role, tools, or skills.
+Create a roster identity only when the user explicitly wants a new reusable
+agent. Names such as “Fable Coder” or “Astra Coder” belong on a seat loadout's
+`display_name`, not in the agent roster. Multiple seats can use the same agent
+with different loadouts.
+
 The fast path seats roster agents by name, posts the prompt, streams the feed to stderr, and prints the transcript when the party goes quiet:
 
 ```bash
@@ -37,6 +52,10 @@ proxy party run --format-id debate --agents "claude,gemini" --timeout 600 --json
 ```
 
 `--format-id` takes `forum`, `swarm`, `pair_programming`, or a standing party definition id (default: forum for several agents, swarm for one).
+
+Use that fast path only when the agents' default loadouts already match the
+request. For a particular model, harness, tools, or skills, use an explicit
+seat loadout as below; `--agents` selects identities, not model aliases.
 
 Or build the session by hand:
 
@@ -57,6 +76,38 @@ proxy party session messages <SESSION_ID> -f human
 # 5. Continue the conversation
 proxy party session send <SESSION_ID> --content "What about per-model margin tiers?"
 ```
+
+### Configure a seat without growing the roster
+
+1. Inspect `proxy agent list`, `proxy loadout list`, `proxy model list`, and
+   `proxy harness list`. Match the requested model by catalog name/family/variant
+   and use its exact ID and provider. Check the chosen harness is available.
+2. Reuse a loadout only if its model, harness, skills, and integrations already
+   match. Otherwise create a named loadout on the existing agent. Do not edit
+   or activate its global default just to configure this party.
+3. Equip the requested skills and connected integrations on that loadout,
+   then seat the existing `agent_id` with the explicit `loadout_id`.
+
+For example, after confirming these model/harness IDs in the local catalogs
+and substituting the IDs returned by the commands:
+
+```bash
+proxy loadout create '{"agent_id":"<EXISTING_CLAUDE_ID>","name":"Pricing review - Fable","display_name":"Fable","provider_id":"anthropic","model_id":"claude-fable-5-1","backend_model":null,"harness_id":"claude-code"}'
+proxy loadout skill equip <LOADOUT_ID> <SKILL_ID>
+proxy loadout integration equip <LOADOUT_ID> <CONNECTED_INTEGRATION_ID>
+proxy party session add-participant <SESSION_ID> '{"agent_id":"<EXISTING_CLAUDE_ID>","loadout_id":"<LOADOUT_ID>","role":"participant"}'
+proxy party session participants <SESSION_ID>
+proxy agent self --session <SESSION_ID> --agent <EXISTING_CLAUDE_ID>
+```
+
+Equip only what the task needs; a new loadout receives default equipment, not
+a copy of all equipment from the agent's existing loadout. Keep `backend_model`
+null when using a catalog `model_id` so a stale custom model does not override
+it. For multiple seats of the same agent, inspect each participant's
+`loadout_id` and its entry in `proxy loadout list`; `agent self` selects one
+seat. Verify model, harness, skills, and integrations before sending work.
+For standing parties, put this configuration in `loadouts/*.md` and bind it
+from `team.<role>.loadout` (see `party-maker`).
 
 ### Session config (working directory)
 
@@ -116,6 +167,9 @@ proxy party external list [--provider codex|claude-code|hermes] [--limit N] [--i
 ```
 
 ### Agents
+
+`create` creates a persistent roster identity. Party setup normally uses an
+existing identity and a seat-specific loadout instead (workflow above).
 
 ```bash
 proxy agent list

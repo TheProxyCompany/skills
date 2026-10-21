@@ -40,6 +40,29 @@ hand-authoring a folder. The manifest rejects unknown keys.
 
 Use `proxy-cli` when you need direct command-line control.
 
+### Select identities, then configure seats
+
+List existing agents and their loadouts before seating anyone. “Add Fable”
+means reuse Claude with a Fable model and the `claude-code` harness; “Gemini
+Argon” means reuse Gemini with an Argon model; “Astra” means reuse Codex with
+an Astra model and the `codex` harness. Resolve exact model and harness IDs
+from the local catalogs. Honor explicit compatible harness choices; otherwise
+preserve Gemini's compatible configured harness. An unavailable or ambiguous
+model needs resolution, not a new agent.
+
+Model choice, role, tools, and skills belong in a seat-specific loadout.
+Reuse a matching loadout or create one on the existing agent, equip the
+needed skills and connected integrations, and pass both `agent_id` and
+`loadout_id` when adding the participant. Do not activate or edit the agent's
+global default for one party. Multiple seats may share an agent identity
+with different loadouts. Use `display_name` on the loadout for role labels.
+Only create a new roster agent when the user explicitly requests a new
+reusable identity, never merely to satisfy a model or role request.
+
+The `proxy-cli` skill has the concrete loadout/seat commands; `party-maker`
+covers file-backed loadouts for standing parties. Verify the seated agent,
+loadout, model, harness, skills, and integrations before firing the party.
+
 List sessions:
 
 ```bash

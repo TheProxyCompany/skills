@@ -55,7 +55,7 @@ team:                      # seat -> agent binding
     agent: kimi
     loadout: loadouts/scout.md
   worker:
-    agent: claudecode
+    agent: claude           # use the existing Claude agent's actual id
   reviewer:
     agent: gemini
 roles:                     # role -> behavior
@@ -121,14 +121,67 @@ that produce nothing should have `produces: []` and exist for their effect
 on the conversation, not for artifacts.
 
 **Team.** Bind each seat to an agent from the roster by agent id. Match
-model strength to seat difficulty: the synthesizer or reviewer seat earns
-the strong model; fan-out worker seats run on cheap fast agents. Set
+model strength to seat difficulty through each seat's loadout: the synthesizer
+or reviewer seat earns the strong model; fan-out workers can share the same
+agent with cheaper models. Set
 `effort: high` only on the seats whose output settles.
 
-**Loadouts.** A loadout file overlays an agent for this seat: extra
-instructions, tool emphasis, tone. Use loadouts when the same agent serves
-different seats differently. Keep them short; they stack on top of the
-agent's own definition.
+**Loadouts.** A loadout configures the seat's model, provider, harness, skills,
+integrations, display name, and prompt. Use one when the same agent serves
+different seats differently. Bind it explicitly from the team seat; creating
+a loadout does not select it automatically. Do not change the agent's global
+default to configure a party.
+
+### Model requests reuse agents
+
+Before writing the team, inspect `proxy agent list`, `proxy loadout list`,
+`proxy model list`, and `proxy harness list`. “Fable” means the existing Claude
+agent with a Fable model and `claude-code` harness. “Gemini Argon” means the
+existing Gemini agent with an Argon model. “Astra” means the existing Codex
+agent with an Astra model and `codex` harness. Honor explicit compatible
+harness choices; otherwise retain Gemini's compatible configured harness.
+Use catalog IDs, not guessed aliases. Report missing or ambiguous models
+instead of inventing a new agent.
+
+Do not create agents such as “Fable Coder”, “Astra Coder”, or a party-specific
+reviewer to configure a seat. Only create a new roster identity when the user
+explicitly asks for a new reusable agent. Roles and loadout `display_name`
+provide party-specific labels; multiple seats can share one agent identity.
+
+For a Fable seat, use the existing Claude ID in `team`:
+
+```yaml
+team:
+  worker:
+    agent: <EXISTING_CLAUDE_ID>
+    loadout: loadouts/fable-worker.md
+```
+
+Then write `loadouts/fable-worker.md` (confirm the model and harness IDs in
+the local catalogs; use a party-specific loadout name to avoid collisions):
+
+```markdown
+---
+name: Night Watch - Fable worker
+display_name: Fable
+harness: claude-code
+provider: anthropic
+model_id: claude-fable-5-1
+skills: []
+integrations: []
+---
+Implement the assigned change and report the verification results.
+```
+
+The owning agent is inferred from the referencing team seat. `model_id` is
+the catalog model; omit `model` (the custom backend override) when using it.
+Fill `skills` with discovered skill IDs and `integrations` with the connected
+tools this role needs. File loadouts declare their own equipment; do not
+assume they copy the agent's existing loadout. Reuse an existing matching
+loadout when appropriate. Before firing, verify the imported loadout's
+agent, model, harness, skills, and integrations and the team's binding to it.
+
+### Completing the definition
 
 **Outputs.** Every party should settle something durable, or it is a chat
 that evaporates. `settle: move` proposes work for the user to approve;
