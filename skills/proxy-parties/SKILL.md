@@ -96,17 +96,17 @@ the row to follow. Run them on the Proxy host. They refuse registry-managed
 
 Recurring jobs live in the folder of the party or the agent that runs them:
 `parties/<id>/jobs/<job-id>.json` for a standing party,
-`agents/<agent-id>/jobs/<job-id>.json` for an agent's direct thread (the proxy
+`agents/<agent-id>/habits/<habit-id>.json` for an agent's direct thread (the proxy
 agent's thread is `proxy.direct.proxy`). Both use one document: `name`,
 `cron`, `prompt`, `device` (a label or device id from `proxy party devices`),
-and optional `enabled`. Proxy imports agent job files on boot and on edit, and
+and optional `enabled`. An agent's recurring job is called a habit. Proxy imports habit files on boot and on edit, and
 the target device fires the job. A deleted file disables its job. The CLI
 writes and removes the files:
 
 ```bash
-proxy agent job list proxy -f human
-proxy agent job set proxy '{"id":"morning","name":"Morning check","cron":"0 9 * * 1-5","prompt":"Review open work.","device":"Proxy Terminal 1"}'
-proxy agent job remove proxy morning
+proxy agent habit list proxy -f human
+proxy agent habit set proxy '{"id":"morning","name":"Morning check","cron":"0 9 * * 1-5","prompt":"Review open work.","device":"Proxy Terminal 1"}'
+proxy agent habit remove proxy morning
 ```
 
 The HTTP routes behind these verbs, on the local instance:
