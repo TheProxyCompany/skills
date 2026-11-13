@@ -18,7 +18,7 @@ description: >
 Binary: `proxy`. `~/.local/bin/proxy` links to the copy inside the installed app bundle (`Proxy.app/Contents/MacOS/proxy-cli`); a worktree build carries its own copy in its bundle. Build only through `Proxy/scripts/dev_cycle.sh`.
 Requires: Proxy running on localhost:51711 (or `$PROXY_PORT`).
 
-`proxy --help` and `proxy <group> [<command>] -h` are the source of truth. Below the top level use `-h`: a nested `--help` falls through to the agent shortcut (last section) and errors. This reference was regenerated from the installed binary on 2026-09-02, and the global flags, `party fire`, harness, page, image and video entries were brought up to the CLI source on 2026-09-20; when a command is missing here, `-h` wins.
+`proxy --help` and `proxy <group> [<command>] -h` are the source of truth. Below the top level use `-h`: a nested `--help` falls through to the agent shortcut (last section) and errors. This reference was checked command by command against the installed binary (2026.11.34) on 2026-11-13; when a command is missing here, `-h` wins.
 
 ## Global Flags
 
@@ -86,15 +86,19 @@ proxy party definition list -f human      # id, name, device, cron, enabled, nex
 proxy party definition get <ID>
 proxy party definition enable <ID>        # sets schedule.enabled in party.yaml
 proxy party definition disable <ID>
-proxy party definition fire <ID> [-p TEXT|@FILE|-] [-d DEVICE] [--timeout SECS] [--json]   # fire now and stream to quiescence
-proxy party fire <ID> [-p TEXT|@FILE|-] [-d DEVICE] [--timeout SECS] [--json]              # same thing
+proxy party definition fire <ID> [-p TEXT|@FILE|-] [-t TITLE] [-d DEVICE] [--timeout SECS] [--json]   # fire now and stream to quiescence
+proxy party fire <ID> [-p TEXT|@FILE|-] [-t TITLE] [-d DEVICE] [--timeout SECS] [--json]              # same thing
 proxy party definition rollover <ID>      # close the current season, open the next
+proxy party definition continuation <ID>  # a definition's durable continuation state
+proxy party definition resume <ID>        # resume a paused or finished continuation loop
+proxy party share <ID> [--public | --private]   # print whether a party is public, or change it; a public party has a link on your proxy.ing address
+proxy add <LINK> [--device MACHINE] [--enable]  # add a party, agent or habit from someone's share link (https://<name>.proxy.ing/p/<id>/); it arrives switched off without --enable
 proxy party devices                       # mesh devices a manifest `device:` can name
 proxy party save <SESSION_ID>             # write a live session as a standing party folder
-proxy party bench [--definition ID | --conversation ID | --agents NAMES "prompt"] [--rounds N] [--json]
+proxy party bench [--definition ID | --conversation ID | --agents NAMES "prompt"] [--prompt-file PATH] [--flow DSL] [--rounds N] [--timeout SECS] [--include-transcript] [--json]
 ```
 
-`-p/--prompt` is the request this firing carries out (literal text, `@path` to read a file, or `-` for stdin); it is posted as the kickoff ahead of the playbook. `-d/--device` runs this one firing on another mesh device (label, device id, or unique hex prefix) and overrides the manifest's `device:` pin. `--timeout` exits 124 if the party is not quiescent in time.
+`-t/--title` names the fired session (for example `PR Review #444`). `-p/--prompt` is the request this firing carries out (literal text, `@path` to read a file, or `-` for stdin); it is posted as the kickoff ahead of the playbook. `-d/--device` runs this one firing on another mesh device (label, device id, or unique hex prefix) and overrides the manifest's `device:` pin. `--timeout` exits 124 if the party is not quiescent in time.
 
 ## Commands Reference
 
@@ -109,10 +113,16 @@ proxy party session delete <ID>
 proxy party session participants <ID>
 proxy party session add-participant <ID> '{"agent_id":"...","role":"participant"}'
 proxy party session add-external <ID> --thread <THREAD_ID> [--role ROLE] [--name NAME] [--agent-id A] [--loadout-id L]
+proxy party session add-address <ID> --username <USERNAME> [--agent AGENT] [--role ROLE] [--name NAME]   # seat another person's Proxy by proxy.ing address (their agent defaults to proxy)
+proxy party session address-participants <ID>     # address participants, and whether each let the party in
 proxy party session remove-participant <SESSION_ID> <PARTICIPANT_ID>
 proxy party session set-config <ID> [PARTICIPANT_ID] '{"working_directory":"..."}'
 proxy party session messages <ID> [--limit N] [--all] [--threads]
 proxy party session send <ID> --content "message" [--format-id FORMAT]
+proxy party session pause <ID>
+proxy party session stop <ID>
+proxy party session continuation <ID>             # durable continuation state, without firing
+proxy party session adopt <ID> --anchor <GOAL_NODE_ID> --from <ROLE> [--verdict-participant ID] [--deadline RFC3339] [--max-runs N] [--min-gap-minutes N]   # make a session a durable continuation loop
 proxy party search --query "text" [--limit N]
 proxy party format list
 proxy party format roles <FORMAT_ID>
@@ -133,9 +143,11 @@ proxy agent reset         # force-reset to registry defaults
 proxy agent defaults list [--scope party]
 proxy agent defaults set '{"scope":"party","role":"moderator","agent_id":"...","position":0}'
 proxy agent defaults remove '{"scope":"party","role":"moderator","agent_id":"..."}'
-proxy agent job list <AGENT_ID>           # agents/<ID>/jobs/<JOB_ID>.json recurring jobs
-proxy agent job set <AGENT_ID> '{"id":"morning","name":"Morning check","cron":"0 9 * * 1-5","prompt":"Review open work.","device":"Proxy Terminal 1"}'
-proxy agent job remove <AGENT_ID> <JOB_ID>
+proxy agent share <ID> [--public | --private]      # print whether an agent is public, or change it
+proxy agent habit list <AGENT_ID>         # agents/<ID>/habits/<HABIT_ID>.json recurring habits
+proxy agent habit set <AGENT_ID> '{"id":"morning","name":"Morning check","cron":"0 9 * * 1-5","prompt":"Review open work.","device":"always-on"}'
+proxy agent habit remove <AGENT_ID> <HABIT_ID>
+proxy agent habit share <AGENT_ID> <HABIT_ID> [--public | --private]
 ```
 
 ### Models
@@ -221,7 +233,7 @@ proxy skill defaults
 
 ```bash
 proxy work                        # the Work feed (same as `proxy work ls [--hours N]`)
-proxy work sites                  # list workspaces
+proxy work sites [--state STATE] [--root PATH] [--conversation ID]   # list workspaces; `held` is an alias for the dirty_hold state
 proxy work site show <ID>         # one workspace with a live health probe
 proxy work site new [--root PATH | --root-id ID] [--kind git|folder|blank] [--data-root none|fresh|imported] [--wait]
 proxy work site lease <ID> [--conversation ID --participant ID | --move ID | --manual] [--goal NODE] [--lifetime firing|work] [--escape sandbox|push-branch|push|apply]
@@ -232,13 +244,33 @@ proxy work site unstick <ID>      # abort a frozen rebase/merge and clear stale 
 proxy work site path <ID>         # cd "$(proxy work site path <ID>)"
 proxy work draft <ID>             # what a workspace proposes: its draft against where it started
 proxy work root list / add <LABEL> [--path P] [--kind K] / rm
-proxy work pool [--root PATH] / set [--target N] [--max N] [--enabled BOOL] [--min-free-gb N] / warm [--root PATH]
+proxy work pool [--root PATH]     # pool status
+proxy work pool set [--root PATH] [--target N] [--max N] [--enabled true|false] [--min-free-gb N]
+proxy work pool warm [--root PATH]   # start one background provision without waiting
 proxy work env                    # the checkout you stand in: slot, port, data root, isolation, branch
 proxy work doctor                 # per-workspace health: dirty, unpushed, stuck, held, stranded, lost
 proxy work reconcile              # reconcile workspace rows against git and disk
 ```
 
 Whether `proxy work site merge` may push depends on the holder's escape right: `sandbox` keeps the work in the workspace, `push-branch` parks it on `work/<ID>`, `push` lets it reach main. A standing party grants the right per seat with `worksite.escape` in `party.yaml` (spelled `sandbox`, `push_branch`, `push` there).
+
+### Life Map
+
+Read-only queries over the Life Map. The MCP tools (`proxy_search`, `proxy_overview`, ...) cover the same ground and also write; these are for a shell.
+
+```bash
+proxy map overview [--scope SCOPE] [--limit N] [--descriptions]   # recent activity ranked by structural weight
+proxy map recent [--scope SCOPE] [--limit N]
+proxy map search "<query>" [--limit N]                            # text and semantic search over nodes and entries
+proxy map get <ID>                                                # one node and its edges
+proxy map leverage [--scope SCOPE] [--leaf-only] [--limit N]      # actions ranked by leverage
+proxy map blockers <ID> [--scope SCOPE]                           # unmet NEEDS chains blocking a node
+proxy map odds <ID>                                               # probability quote and weakest links
+proxy map what-if <ID> [--limit N] [--scope SCOPE]                # simulate completing a node
+proxy map gradient <ID> [--top-k N] [--scope SCOPE]
+proxy map score-mutations <GOAL_ID> --mutations <JSON> [--goal-type T] [--scope SCOPE]
+proxy map snapshot                                                # the whole graph: nodes, edges, clouds, pagerank
+```
 
 ### Config & System
 
@@ -249,7 +281,10 @@ proxy config gc get / update '{...}'
 proxy system health
 proxy system snapshot create / list / restore <PATH> / merge <PATH> [--include-party]
 proxy system orchard status / start / stop
-proxy system navigate widget <home|timeline|roster|actions|command|lifeMap> [--tab T] [--node-id ID]
+proxy system navigate widget <home|timeline|roster|actions|command|lifeMap|omni> \
+  [--tab parties|agents|tools|skills|prompts|harnesses] \
+  [--node-id ID] [--node-kind KIND] [--node-name NAME] \
+  [--section network|connection|security]
 proxy system navigate party [--session-id ID]
 proxy system navigate attic [--section general|keys|integrations|accounts|party|orchard|proxyIng|harness]
 proxy system update check / status / install     # Sparkle updates
@@ -303,6 +338,7 @@ proxy page remove <SLUG>                         # removes it from every paired 
 ```bash
 proxy ing pair [--username U] [--no-wait]        # pair this Mac with its proxy.ing address
 proxy ing status
+proxy ing always-on [MACHINE | --none]           # print which Mac is always on, or pick it; a habit or party whose device is always-on runs there
 proxy ing tunnel refresh [--username U]          # re-fetch this Mac's tunnel and restart cloudflared
 proxy feedback submit --user-report "User's exact words" \
   --summary "Short title" --details "Observed and expected behavior" \
