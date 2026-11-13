@@ -2,8 +2,8 @@
 name: proxy-moves
 description: >
   Create, inspect, revise, and resolve Proxy Moves. Use when an agent needs to
-  propose a user-reviewed action, build interactive Move blocks, add quick
-  feedback prompts, answer clarifying questions, update a Move from user
+  propose a user-reviewed action, build interactive Move blocks, add suggested
+  replies, answer clarifying questions, update a Move from user
   feedback, or make/reject/defer a Move through Proxy tools.
 ---
 
@@ -33,8 +33,8 @@ Required fields:
 
 Optional fields:
 
-- `quick_actions`: short suggested feedback prompts, shown as buttons beside
-  the Move.
+- `quick_actions`: up to three suggested replies, shown as buttons under the
+  card. See Suggested Replies.
 - `resolve_label`: top-level primary action label, not a block field.
   Changing the label does not change the action's execution behavior.
 - `about`: array of Life Map node ids the Move is about. Every Move is about
@@ -91,10 +91,27 @@ before and after with `proxy screenshot`, store both PNGs with
 - Match the headline, recommendation and approval consequence. Keep money,
   authority, irreversibility and uncertainty visible before the user answers.
   Do not claim a proposed safeguard is implemented without evidence.
-- Use `quick_actions` for move-specific feedback prompts.
+- Use `quick_actions` only for suggested replies grounded in evidence; see
+  Suggested Replies.
 - Include enough context that the user can say yes, no, later, or ask for a
   change without opening a separate transcript.
 - If the source conversation matters, link the Move to it.
+
+## Suggested Replies
+
+`quick_actions` are the replies the user is most likely to send back, so
+answering can take one tap. A tap puts the reply in the reply box; the user
+reads it, edits it if needed, and sends it. Nothing is sent on the tap.
+
+- Ground each reply in something you actually saw: an email, a calendar
+  event, a Life Map entry, the source thread.
+- One confident reply is best. Offer two or three only when the evidence truly
+  splits. Never more than three; the tools reject a fourth.
+- When nothing you saw points to an answer, leave them out. A generic guess
+  is worse than none.
+- Write each reply in the user's own words, as they would send it ("Rains
+  signed it Friday"), not as a prompt for you ("Explain more").
+- Do not repeat the card's own options.
 
 ## Feedback Loop
 
@@ -112,7 +129,8 @@ When the user asks a clarifying question or requests changes:
    `quick_actions`, `resolve_label` (the label on the primary resolve button)
    or `status`.
 5. Keep the Move smaller and clearer after revision.
-6. Refresh `quick_actions` if better prompts are now obvious.
+6. Refresh `quick_actions` when the answer changed what the likely reply is,
+   or clear them with an empty array.
 
 ## Resolution
 
