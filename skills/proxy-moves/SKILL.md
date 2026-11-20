@@ -9,148 +9,178 @@ description: >
 
 # Proxy Moves
 
-A Move is an agent proposal that waits for the user. It packages context,
-interactive inputs, content, diffs, and a clear action boundary.
-Use a Move only for missing user judgment or authority. Do not ask again for
-work already authorized, or turn a status update into a decision. Record
-progress as an entry on the relevant Life Map subject and work within scope.
-Do not execute a proposed action that still needs the user's authority
-until they grant it.
+A Move is an agent proposal (`https://moves.md`) that waits for the user. It
+packages context, interactive inputs, content, diffs, and a clear action
+boundary for one person reading on a phone or at his desk in ten seconds.
 
-## Core Shape
+## When to Make a Move (4 Critical Boundaries)
 
-Create Moves with `proxy_create_move`.
+Routine background scans (reading messages, checking threads, syncing Life Map
+state, evidence patrols) must log quiet node updates (`proxy_mutate` with
+`entry_type: "update"` and a `dedupe_key`) and NEVER create a Move unless they
+hit one of four critical boundaries:
 
-Required fields:
+1. **Paywall or financial spend:** spending money, billing caps, paid
+   commitments.
+2. **External outbound communication:** sending emails, messages, or sensitive
+   info outside the machine.
+3. **Destructive or production-altering actions:** merging or approving PRs,
+   reverting, deploying, releasing, changing settings/access, or deleting user
+   data.
+4. **Explicit Move-proposing role:** a role the user explicitly created to
+   propose Moves.
 
-- `id`: stable unique move id.
-- `title`: short headline naming the concrete decision. Aim for 2–5 words;
-  word count alone proves neither clarity nor fit in the actual UI.
-- `lede`: one or two sentence hook; the one fact that makes it matter.
-- `context`: two or three short plain sentences on why this matters, shown on
-  the card. Simple words. No lists, no headings, no ids.
-- `blocks`: typed block objects. Each block carries a `type`.
+**Do the work first, gate only the trigger.** Never propose a Move asking
+"Should I investigate / draft / check X?" or "Dismiss this card?". Finish all
+read-only research, verification, and drafting BEFORE calling
+`proxy_moves_propose`, and attach the finished artifact (`copyable` draft,
+`diff`, `before_after`) or `on_resolve` callback so one tap executes the work.
+Pure status updates ("Done", "Merged", "Built") are rejected and belong on the
+node as an `update` entry.
+
+If an open pending Move already exists for the same `about` node or recurring
+source, revise it in place instead of creating a near-duplicate. The server
+enforces a 2-Move pending cap per source and blocks re-proposing recently
+rejected Moves on that node.
+
+## Core Shape (`proxy_moves_propose`)
+
+Create or revise Moves with `proxy_moves_propose` (legacy aliases
+`proxy_create_move` and `proxy_update_move` remain silently routed).
+
+Required fields (on create):
+
+- `id`: stable unique move id (e.g. `move-20261120-approve-pr-611`).
+- `title`: one simple sentence, 10 words or fewer (up to 120 chars), stating
+  the decision as a clear action (e.g. "Approve Root PR #611 now that checks
+  pass").
+- `lede`: one plain-English sentence (<= 140 chars target, 500 max) explaining
+  who/what this is and why now. No raw git SHAs, database row IDs, or exact
+  clock timestamps on the card surface.
+- `context`: full background and technical provenance (2-4 sentences, up to
+  1500 chars). Exact commit SHAs, file paths, and verification receipts belong
+  here, not on the card surface.
+- `blocks`: typed block objects (`https://moves.md/blocks`). Each block carries
+  a `type`, and `content` holds up to 2000 chars. Lead with the artifact.
+- `about`: array of Life Map node ids the Move is about. Search first with
+  `proxy_search` or check a known id with `proxy_read` before inferring
+  absence. (`link_to` is the older single-id alias; prefer `about`.)
 
 Optional fields:
 
-- `quick_actions`: short suggested feedback prompts, shown as buttons beside
-  the Move.
-- `resolve_label`: top-level primary action label, not a block field.
-  Changing the label does not change the action's execution behavior.
-- `about`: array of Life Map node ids the Move is about. Every Move is about
-  something: search first (`proxy_search`); check a known id with `proxy_get`
-  before inferring absence. Create a missing subject only within authorized
-  scope. `link_to` is the older single-id spelling; prefer `about`.
+- `resolve_label`: 2-4 words, 28 chars or fewer, naming the exact mechanical
+  consequence of clicking the primary button (`"Send Email"`, `"Send Message"`,
+  `"Approve PR #611"`). Never use `"Save Gmail Draft"` when the Move card
+  already shows the draft and approving fires the send.
+- `quick_actions`: short suggested feedback prompts shown as chips beside the
+  Move.
+- `on_resolve`: callback executed when the Move is made with its primary button
+  (`https://moves.md/callbacks`).
 
-Block types:
+## Match the Shape to the Decision
 
-- `text`: `content`, one or two sentences.
-- `choice`: `question` and `options`; one answer.
-- `multi_choice`: `question` and `options`; several answers.
-- `freeform`: `question`; open-ended input.
-- `diff`: `before` and `after`.
-- `before_after`: text in `before`/`after`, screenshots in `before_image`/
-  `after_image` (content refs from `proxy_store_content`), or both; text under
-  an image renders as its caption.
-- `image`: `ref`, a content ref from `proxy_store_content`.
-- `info`: a `label` kicker (for example "Why this matters") over short
-  `content`.
-- `section`: `label` and `children`.
-- `row` / `column`: layout blocks with `children`; a child may set `weight`
-  (1 to 12) to claim that share of its row. Nest up to four levels. Keep
-  interactive blocks (choice, multi_choice, freeform) at the top level, not
-  inside a row or column. When the first block is a `row` or `column`, the
-  card gives the layout the full width.
+- **Single-action Move** (outbound email/message, PR approval, sheet row): show
+  the finished artifact first (`copyable`, `before_after`, `diff`, `data`) and
+  set a crisp `resolve_label`. Do NOT add a redundant `choice` block (the card
+  already has Veto, feedback, and the primary button).
+- **True fork (`choice`):** use only for 2-4 genuinely competing positive paths.
+  Never include "No / Skip / Hold off" as a radio option (that is what Veto is
+  for). Keep every option label under 70 chars so it never truncates; put
+  tradeoffs in a `side_by_side` or `data` block above the choice, and mark your
+  pick with `(Recommended)` inline.
+- **Batch selection (`multi_choice`):** for 2+ independent items, pre-check
+  `default_options` so the user can uncheck items in one click.
+- **Open taste or steering (`freeform`):** use `freeform` with `quick_actions`
+  chips rather than forcing pre-baked radio options.
 
-Give interactive blocks an `id`; the user's answers come back keyed by it.
+## Block Catalog (`https://moves.md/blocks`)
 
-The card is skimmed, not studied. Prefer an image, diff or before/after block
-over a paragraph; several short blocks with air between them over one dense
-one. Show the change, do not describe it: for UI work, capture the running app
-before and after with `proxy screenshot`, store both PNGs with
-`proxy_store_content`, and put the two refs in one `before_after` block.
+Content blocks:
+- `copyable`: `content` (required), optional `label`. Verbatim outbound draft
+  or command with one-click copy.
+- `text`: `content` (required). Short markdown prose (1-2 sentences).
+- `info`: `content` (required), optional `label` kicker. Use sparingly for
+  non-obvious context not in `lede`.
+- `data`: `rows` (`[[String]]`), optional `headers` (`[String]`).
+- `code`: `content`, optional `language`.
+- `image`: `ref` (from `proxy_store_content`), optional `caption`, `alt`.
+- `images`: `images` (`[{ref, caption?, alt?}]`), optional `caption`.
+- `video` / `audio`: `ref`, optional `caption`.
+- `file`: `ref` and `filename`.
+- `terminal`: `content`.
+- `kv`: key-value pairs for compact metadata.
+
+Delta and comparison blocks:
+- `before_after`: `before`/`after` text, `before_image`/`after_image` refs from
+  `proxy_store_content`, or both; optional `label`. Always include screenshots
+  for a visible UI change.
+- `diff`: `before` and `after`, optional `filename`, `language`.
+- `side_by_side`: `left` and `right`, optional `left_label`, `right_label`.
+- `timeline`: `events` (`[{timestamp, label, description?, status?}]`).
+
+Input and decision blocks (give each an `id`; user answers return keyed by it):
+- `choice`: `question`, `options` (strings or `{label, image}`, each `< 70`
+  chars), optional `default_option` (0-based).
+- `multi_choice`: `question`, `options`, optional `default_options` (`[Int]`).
+- `freeform`: `question`, optional `placeholder`.
+- `toggle`: `question`, optional `default_value`.
+- `numeric`: `question`, optional `min`, `max`, `step`.
+- `ranking`: `question`, `items`.
+- `date`, `file_upload`, `color`, `secret`, `rating`, `confirmation`,
+  `native_view`.
+
+Reference, signal, and layout blocks:
+- `url` (`href`, optional `label`, `description`), `snippet` (`path`, `content`,
+  optional `start_line`, `end_line`, `language`, `highlights`), `excerpt`
+  (`content`, `source`, optional `source_url`, `highlights`), `person` (`name`,
+  optional `role`, `avatar`), `file_path` (`path`), `graph_node` (`node_type`,
+  `node_id`), `location` (`lat`, `lng`), `datetime` (`iso`).
+- `warning` (`message`), `alert` (`message`, `severity?`), `progress` (`value`,
+  `max?`, `label?`), `urgency` (`level`, `message?`), `expiration`
+  (`expires_at`, `message?`).
+- `section` (`label`, `children`, optional `collapsible`, `collapsed`,
+  `condition`), `row` / `column` (`children`, optional child `weight` 1-12;
+  nest up to 4 levels; keep interactive blocks at top level), `executable`
+  (`label`, optional `description`, `command`, `children`, `strategy`).
 
 ## Design Rules
 
-- Make one coherent decision obvious. Several steps can belong to one stated
-  scope; separate independent judgments, not verbs or implementation stages.
-- Keep implementation details out of user-facing copy.
-- Ask for exactly the missing judgment, not every possible preference.
-- Give the actual recommendation, its reason and material downside. Offer
-  real alternatives without shaming refusal; use freeform for open judgment.
-  A recommendation label is not itself coercion.
-- Preserve provenance and current uncertainty. Attribute source claims;
-  distinguish them from verified facts. Keep unknown authors unknown and
-  distinguish a revision's author from the original author.
-  Make attribution visible in supported copy if the byline is unverified.
-- Preserve the seriousness of a reported risk without dropping its hedge.
-  Distinguish a draft change from a demonstrated improvement.
-- Verify reviewers' claims against the sources too; agreement is not a receipt.
-- Do not turn diverted attention into a formally paused project, or missing
-  channel data into proof an event or response did not happen.
-- Match the headline, recommendation and approval consequence. Keep money,
-  authority, irreversibility and uncertainty visible before the user answers.
-  Do not claim a proposed safeguard is implemented without evidence.
-- Use `quick_actions` for move-specific feedback prompts.
-- Include enough context that the user can say yes, no, later, or ask for a
-  change without opening a separate transcript.
-- If the source conversation matters, link the Move to it.
+- Make one coherent decision obvious. Keep implementation details out of
+  user-facing copy.
+- When introducing an unfamiliar person, outlet, or concept, open with one
+  plain-English sentence explaining who or what they are.
+- Give the actual recommendation, its reason, and material downside. Offer real
+  alternatives without shaming refusal.
+- Preserve provenance and uncertainty. Attribute source claims; distinguish
+  them from verified facts; verify reviewers' claims against primary sources.
+- Match the headline, recommendation, and approval consequence. Keep money,
+  authority, irreversibility, and uncertainty visible before the user answers.
 
-## Feedback Loop
+## Feedback Loop & Inspection
 
-When the user asks a clarifying question or requests changes:
+- **Inspect:** Use `proxy_moves_read` (single `id`, or filtered/paginated list
+  by `status`, `about_id`, `limit`, `offset`; v1 aliases `proxy_get_move` and
+  `proxy_list_moves` remain routed).
+- **Revise:** Use `proxy_moves_propose` with `op: "update"` (or existing `id`)
+  instead of creating a near-duplicate. Preserve source context, status, and
+  existing user responses; do not remap answers to changed questions.
+- **Delete:** Use `proxy_delete_move` (human-gated) to remove a Move that
+  should never have existed.
 
-1. Read the Move with `proxy_get_move`.
-2. Preserve source context, status and existing user responses. Inspect the
-   action bindings before shortening copy; a narrower label must not retain
-   undisclosed broader execution. Do not remap answers to changed questions.
-3. Have an independent critic compare substantive drafts with their sources
-   before live copy changes. Verify rendering and response behavior on the
-   intended surface; a mockup or word count is not that verification.
-4. Update the Move with `proxy_update_move` instead of creating a
-   near-duplicate. It replaces `title`, `lede`, `context`, `blocks`,
-   `quick_actions`, `resolve_label` (the label on the primary resolve button)
-   or `status`.
-5. Keep the Move smaller and clearer after revision.
-6. Refresh `quick_actions` if better prompts are now obvious.
-
-## Resolution
+## Resolution (`proxy_make_move`, Human-Gated)
 
 Use `proxy_make_move` only to record a decision the user actually gave.
-The user normally decides in the app. Resolution can dispatch callbacks;
-it is not a harmless way to test copy.
+Resolution can dispatch callbacks; it is not a harmless way to test copy.
 
 - `made_by` is required: the resolver id, normally `user`.
 - `status: "made"` records approval (the default), not proof of successful
   execution. The tool can return `success: true` before callbacks finish.
 - `status: "rejected"` means declined.
-- `response` should contain structured user answers keyed by block id.
+- `response` carries structured user answers keyed by block id.
 
-Do not infer approval from silence. "Later" is not rejection.
-Read back the recorded decision and answers. Before reporting work complete,
-verify the downstream result and attach a completion receipt to its action
-or subject. If execution is pending, failed or unverified, say so separately
-from approval; do not invent a status or overwrite the user's response.
-
-## Inspection
-
-- Use `proxy_list_moves` to find Moves; filter by `status` (`pending`, `made`,
-  `rejected`, `failed`), `about_type` or `about_id`.
-- Use `proxy_get_move` to inspect full blocks, response data, quick actions,
-  source, status, and linked subjects.
-- Use `proxy_update_move` to revise blocks, quick actions, or status.
-- Use `proxy_delete_move` to remove a Move that should never have existed.
-
-## Good Move Smell
-
-A good Move feels calm and easy:
-
-- The title says the decision.
-- The lede explains the payoff.
-- The context explains why now.
-- The blocks collect only the needed input.
-- The action buttons match the consequence.
-- The user can ask a question without losing the thread.
+Do not infer approval from silence. "Later" is not rejection. Read back the
+recorded decision and answers, verify the downstream result, and attach a
+completion receipt to its action or subject.
 
 For regression review, use [copy-regressions.json](references/copy-regressions.json)
 and [reviewer-regressions.json](references/reviewer-regressions.json).
