@@ -22,9 +22,9 @@ Requires: Proxy running on localhost:51711 (or `$PROXY_PORT`).
 
 ## Global Flags
 
-- `--port <PORT>` — HTTP port (default 51711, reads `$PROXY_PORT`). Long-only: `-p` is `party fire --prompt`.
-- `-f, --format json|human` — output format (default json)
-- `--host <HOST>` — target host (default 127.0.0.1)
+- `--port <PORT>`: HTTP port (default 51711, reads `$PROXY_PORT`). Long-only: `-p` is `party fire --prompt`.
+- `-f, --format json|human`: output format (default json)
+- `--host <HOST>`: target host (default 127.0.0.1)
 
 Use `-f human` for readable output. Use default json when parsing responses programmatically.
 
@@ -256,7 +256,7 @@ Whether `proxy work site merge` may push depends on the holder's escape right: `
 
 ### Life Map
 
-Read-only queries over the Life Map. The MCP tools (`proxy_search`, `proxy_overview`, ...) cover the same ground and also write; these are for a shell.
+Read-only queries over the Life Map. The MCP tools (`proxy_search`, `proxy_query`, `proxy_read`, `proxy_analyze`, `proxy_mutate`, ...) cover the same ground and also write; these are for a shell.
 
 ```bash
 proxy map overview [--scope SCOPE] [--limit N] [--descriptions]   # recent activity ranked by structural weight
@@ -361,8 +361,8 @@ proxy claude "Summarize the open Moves" [--timeout SECS] [--json]
 
 ## Tips
 
-- **Always check `proxy system health` first** if commands fail — Proxy may not be running.
-- **`proxy party run --agents` is the fast path** — it seats, posts and prints the transcript in one call.
-- **`send` triggers a full agent round** — all participants respond. This is async; poll `messages` to see responses.
-- **JSON payloads must be valid JSON objects** — use single quotes around the JSON to avoid shell escaping issues.
-- **Port differs in worktrees** — run `proxy work env`, or `source .worktree-env`, and use its `PROXY_PORT`. A `wt.sh` worktree gets a hashed port; only `proxy work site` worksites use `51711 + slot`.
+- **Always check `proxy system health` first** if commands fail: Proxy may not be running.
+- **`proxy party run --agents` is the fast path**: it seats, posts and prints the transcript in one call.
+- **`send` triggers a full agent round**: all participants respond. This is async; poll `messages` to see responses.
+- **JSON payloads must be valid JSON objects**: use single quotes around the JSON to avoid shell escaping issues.
+- **Port differs in worktrees**: run `proxy work env`, or `source .worktree-env`, and use its `PROXY_PORT`. A `wt.sh` worktree gets a hashed port; only `proxy work site` worksites use `51711 + slot`.

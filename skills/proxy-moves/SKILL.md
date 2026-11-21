@@ -74,11 +74,12 @@ Optional fields:
   already shows the draft and approving fires the send.
 - `quick_actions`: short suggested feedback prompts shown as chips beside the
   Move.
-- `op`: `"create"` (default) or `"update"` (with existing `id`) to revise a pending Move.
-- `deadline`: optional ISO-8601 deadline timestamp.
-- `replaces`: optional pending Move ID superseded by this Move.
+- `op`: `"create"` or `"update"`. When omitted, auto-detects a partial `"update"`
+  if `id` names an existing `pending` Move (settled Moves route through create
+  policy and are refused).
 - `on_resolve`: callback executed when the Move is made with its primary button
-  (`https://moves.md/callbacks`).
+  (`https://moves.md/callbacks`; create only, ignored when updating an existing
+  Move).
 
 ## Match the Shape to the Decision
 
@@ -165,7 +166,7 @@ Reference, signal, and layout blocks:
   by `status` (`"pending"`, `"made"`, `"rejected"`, `"deferred"`, `"cancelled"`),
   `about_id`, `about_type`, `limit`, `offset`; v1 aliases `proxy_get_move` and
   `proxy_list_moves` remain routed).
-- **Revise:** Use `proxy_moves_propose` with `op: "update"` (or existing `id`)
+- **Revise:** Use `proxy_moves_propose` with `op: "update"` (or existing `pending` `id`)
   instead of creating a near-duplicate. Preserve source context, status, and
   existing user responses; do not remap answers to changed questions.
 - **Delete:** Use `proxy_delete_move` (human-gated) to remove a Move that

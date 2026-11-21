@@ -33,12 +33,17 @@ Treat bearer tokens, personal keys, and endpoint URLs as secrets.
 
 After connecting, verify the tool surface before doing work:
 
-- `proxy_overview` for Life Map overview.
-- `proxy_search` for graph search.
-- `proxy_list` for structured entity listing.
-- `proxy_prioritize` for leverage-ranked work.
-- `proxy_create_move`, `proxy_list_moves`, `proxy_get_move`,
-  `proxy_update_move`, and `proxy_make_move` for Moves.
+- `proxy_search` for hybrid BM25 + semantic + exact-ID graph search.
+- `proxy_read` for progressive L0/L1/L2 node reads, batch `ids`, edges, and
+  bounded k-hop causal traversal.
+- `proxy_query` for compact structured node slices (`mode: "list"`), topology
+  overview (`mode: "overview"`), and recent activity (`mode: "recent"`).
+- `proxy_analyze` and `proxy_simulate` for leverage, goal odds, gradients, and
+  counterfactual simulations.
+- `proxy_mutate` for creating or updating nodes, appending entries, and wiring
+  or removing edges.
+- `proxy_moves_propose`, `proxy_moves_read`, `proxy_make_move`, and
+  `proxy_delete_move` for Moves.
 - `proxy_submit_feedback` for a user-approved diagnostic product report with
   the user's verbatim words, relevant logs, and a Proxy-window screenshot.
 
