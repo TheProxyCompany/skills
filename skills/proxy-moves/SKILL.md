@@ -64,7 +64,7 @@ Required fields (on create):
   a `type`, and `content` holds up to 2000 chars. Lead with the artifact.
 - `about`: array of Life Map node ids the Move is about. Search first with
   `proxy_search` or check a known id with `proxy_read` before inferring
-  absence. (`link_to` is the older single-id alias; prefer `about`.)
+  absence. (`link_to` is the legacy typed-object array alias; prefer `about: [node_id, ...]`.)
 
 Optional fields:
 
@@ -74,6 +74,9 @@ Optional fields:
   already shows the draft and approving fires the send.
 - `quick_actions`: short suggested feedback prompts shown as chips beside the
   Move.
+- `op`: `"create"` (default) or `"update"` (with existing `id`) to revise a pending Move.
+- `deadline`: optional ISO-8601 deadline timestamp.
+- `replaces`: optional pending Move ID superseded by this Move.
 - `on_resolve`: callback executed when the Move is made with its primary button
   (`https://moves.md/callbacks`).
 
@@ -159,7 +162,8 @@ Reference, signal, and layout blocks:
 ## Feedback Loop & Inspection
 
 - **Inspect:** Use `proxy_moves_read` (single `id`, or filtered/paginated list
-  by `status`, `about_id`, `limit`, `offset`; v1 aliases `proxy_get_move` and
+  by `status` (`"pending"`, `"made"`, `"rejected"`, `"deferred"`, `"cancelled"`),
+  `about_id`, `about_type`, `limit`, `offset`; v1 aliases `proxy_get_move` and
   `proxy_list_moves` remain routed).
 - **Revise:** Use `proxy_moves_propose` with `op: "update"` (or existing `id`)
   instead of creating a near-duplicate. Preserve source context, status, and

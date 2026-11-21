@@ -67,8 +67,10 @@ represent blockers, constraints, risks, pressure, or enabling context.
 **Concept.** An idea, principle, thesis, or framing that informs decisions but
 is not itself actionable.
 
-**File.** A reference to content-addressed storage: documents, images, PDFs,
-and other files.
+**File / Content Artifact.** Binary and media artifacts are stored via
+`proxy_store_content` (`proxy://content/...` URIs) or modeled as `entity`
+nodes. MCP `entity_type` parameters accept the 6 node kinds (`goal`, `action`,
+`entity`, `event`, `condition`, `concept`) plus `entry`.
 
 **Entry.** A journal record attached to nodes via `ABOUT` edges. Entries do not
 float; they belong to something.
@@ -138,7 +140,8 @@ as backwards-compatible aliases.
   `kind`, `name`, `phase`, `belief`, `updated_at`, bounded `description`),
   `total_entries`, `children_count`, a 7-edge histogram (`about`, `for`, `has`,
   `impacts`, `makes`, `needs`, `wants`), and causal edges only (default
-  `edges_limit: 20`). Never dumps hundreds of entries or children by default.
+  `edges_limit: 12` on `l0`; `50` on `mode: "edges"`). Never dumps hundreds of
+  entries or children by default.
 - **L1 (`detail: "l1"`):** Adds paginated entries (`entries_limit` default `10`,
   max `50`, `entries_offset`, `entries_since`, `entry_types`) and compact child
   headers (`children_limit`).
@@ -147,17 +150,21 @@ as backwards-compatible aliases.
   `wants`, capped at 50 nodes) and `include_blockers: true`.
 - **Batch `ids: [...]`:** Hydrate up to 50 known IDs in a single call and a
   single graph snapshot instead of N serial `proxy_get` loops.
-- **Edge queries:** Pass `mode: "summary"` for a compact edge histogram, or
-  `mode: "edges"` with `labels`/`edge_types`, `edges_limit`, and `edges_offset`.
+- **Edge & blocker queries:** Pass `mode: "summary"` for a compact edge
+  histogram, `mode: "edges"` with `labels`/`edge_type`, `direction` (`"both"` |
+  `"from"` | `"to"`), `edges_limit`, and `edges_offset`, or `mode: "blockers"`
+  for active blockers (`max_nodes` default `25`, max `50`).
 
 ### 3. `proxy_query` (Compact Patrol Sweeps, Recent Activity, and Overview)
-- **`mode: "list"` with `view: "compact"`:** Scans up to 100 actions/nodes in 1
-  call as one-line summaries with causal degree counts (`sort: "updated_desc"`
-  or `"causal_degree_asc"`, `missing_causal_out: true`, `offset`, `limit`). Use
-  this for patrol sweeps instead of looping `proxy_read`.
+- **`mode: "list"` with `view: "compact"`:** Scans nodes in 1 call (default
+  `limit: 30`, max `200`) as one-line summaries with causal degree counts
+  (`sort: "updated_desc"` or `"causal_degree_asc"`, `missing_causal_out: true`,
+  `causal_in`, `causal_out`, `max_causal_edges`, `offset`, `limit`). Use this
+  for patrol sweeps instead of looping `proxy_read`.
 - **`mode: "overview"`:** Bird's-eye PageRank2 focus blocks plus structural
   health and under-connected active nodes (`include_topology: true`).
-- **`mode: "recent"`:** Recently updated nodes and entries in a scope.
+- **`mode: "recent"`:** Recently updated nodes and entries in a scope (`hours`,
+  default `24`).
 
 ### 4. `proxy_analyze` & `proxy_simulate` (Reality Engine Math)
 - **`proxy_analyze`:** Unified read-only solver (`mode: "prioritize" | "odds" |
@@ -165,9 +172,9 @@ as backwards-compatible aliases.
   node beliefs and `zero_cut` diagnostics), active blockers, and top edge
   gradients in one call. Supports `as_of` historical cutoffs, `scope`, `limit`,
   and `leaf_only`.
-- **`proxy_simulate`:** Counterfactual solver (`mode: "complete"` with multi-node
-  `complete_ids: [...]`, or `mode: "mutations"` scoring candidate edge/belief
-  changes against `goal_id`).
+- **`proxy_simulate`:** Counterfactual solver (`mode: "complete"` with single
+  `id` or multi-node `complete_ids: [...]`, or `mode: "mutations"` scoring
+  candidate edge/belief changes against `goal_id`; supports `scope` and `limit`).
 
 ### 5. `proxy_mutate` & `proxy_moves_propose`
 - **`proxy_mutate`:** Single or atomic batch `upsert_nodes`, `append_entries`
@@ -176,6 +183,11 @@ as backwards-compatible aliases.
   post-write readback verification.
 - **`proxy_moves_propose` / `proxy_moves_read`:** Propose, revise, and paginate
   Moves (see the `proxy-moves` skill for full card authoring rules).
+- **Utility & media tools:** `proxy_notify` (`title`, `body`, optional `data`)
+  sends a local user notification; `proxy_speakers` (`op: "list" | "name"`,
+  `speaker_id`, `name`, `evidence_item_id`) inspects or labels Omni voice
+  speakers; `proxy_store_content` (`path` or `url`, optional `transform`) stores
+  binary/media artifacts as `proxy://content/...` URIs.
 - Destructive and human-gated tools (`proxy_delete`, `proxy_delete_move`,
   `proxy_make_move`, `proxy_set_activation`) remain isolated behind human
   authority gates.
@@ -204,7 +216,8 @@ edges make the problem visible to prioritization and future agents.
 - User asks what to focus on: run `proxy_analyze(mode: "prioritize")`.
 - User mentions a blocker: model it as a condition or action dependency.
 - Conversation produces an insight: record a `takeaway` entry.
-- Status changes: update the action phase directly via `proxy_mutate`.
+- Status changes: direct owner sessions can update `phase` via `proxy_mutate`;
+  agent seats propose phase transitions on existing nodes via `proxy_moves_propose`.
 - Something happened: attach an `update` or `note` entry (using `dedupe_key`
   for recurring checks); create or update an event only for a deadline,
   appointment, trip, launch window, or other bounded time anchor.
