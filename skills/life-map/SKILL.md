@@ -120,10 +120,7 @@ is clearer.
 All v2 tools return compact text in `content[0].text` with `structuredContent`
 omitted by default (eliminating 2x-3x wire duplication). Pass `format: "json"`
 or `include_structured: true` only when a caller explicitly needs structured
-JSON. Legacy v1 tool names (`proxy_get`, `proxy_list`, `proxy_get_edges`,
-`proxy_overview`, `proxy_recent`, `proxy_prioritize`, `proxy_create`,
-`proxy_update`, `proxy_link`, `proxy_create_move`, etc.) remain silently routed
-as backwards-compatible aliases.
+JSON.
 
 ### 1. `proxy_search` (Primary Entry Point: Exact-ID + Hybrid BM25/Semantic + Structured Filters)
 - Exact ID and ID-prefix matches rank #1 immediately across nodes and entries.
@@ -149,7 +146,7 @@ as backwards-compatible aliases.
   bounded k-hop causal DAG traversal (`makes`, `needs`, `for`, `impacts`,
   `wants`, capped at 50 nodes) and `include_blockers: true`.
 - **Batch `ids: [...]`:** Hydrate up to 50 known IDs in a single call and a
-  single graph snapshot instead of N serial `proxy_get` loops.
+  single graph snapshot instead of N serial reads.
 - **Edge & blocker queries:** Pass `mode: "summary"` for a compact edge
   histogram, `mode: "edges"` with `labels`/`edge_type`, `direction` (`"both"` |
   `"from"` | `"to"`), `edges_limit`, and `edges_offset`, or `mode: "blockers"`
@@ -177,10 +174,11 @@ as backwards-compatible aliases.
   candidate edge/belief changes against `goal_id`; supports `scope` and `limit`).
 
 ### 5. `proxy_mutate` & `proxy_moves_propose`
-- **`proxy_mutate`:** Single or atomic batch `upsert_nodes`, `append_entries`
+- **`proxy_mutate`:** Single or batched `upsert_nodes`, `append_entries`
   (with optional `dedupe_key` to prevent patrol entry spam), `set_edges`, and
   `remove_edges` (by `edge_id` or `(from_id, to_id, edge_type)`), with
-  post-write readback verification.
+  post-write readback verification. A batch is not atomic: items commit one at
+  a time, and a failure lists the items that already committed.
 - **`proxy_moves_propose` / `proxy_moves_read`:** Propose, revise, and paginate
   Moves (see the `proxy-moves` skill for full card authoring rules).
 - **Utility & media tools:** `proxy_notify` (`title`, `body`, optional `data`)

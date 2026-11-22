@@ -45,8 +45,7 @@ rejected Moves on that node.
 
 ## Core Shape (`proxy_moves_propose`)
 
-Create or revise Moves with `proxy_moves_propose` (legacy aliases
-`proxy_create_move` and `proxy_update_move` remain silently routed).
+Create or revise Moves with `proxy_moves_propose`.
 
 Required fields (on create):
 
@@ -164,8 +163,7 @@ Reference, signal, and layout blocks:
 
 - **Inspect:** Use `proxy_moves_read` (single `id`, or filtered/paginated list
   by `status` (`"pending"`, `"made"`, `"rejected"`, `"deferred"`, `"cancelled"`),
-  `about_id`, `about_type`, `limit`, `offset`; v1 aliases `proxy_get_move` and
-  `proxy_list_moves` remain routed).
+  `about_id`, `about_type`, `limit`, `offset`).
 - **Revise:** Use `proxy_moves_propose` with `op: "update"` (or existing `pending` `id`)
   instead of creating a near-duplicate. Preserve source context, status, and
   existing user responses; do not remap answers to changed questions.
