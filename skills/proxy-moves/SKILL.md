@@ -63,7 +63,7 @@ Required fields (on create):
   a `type`, and `content` holds up to 2000 chars. Lead with the artifact.
 - `about`: array of Life Map node ids the Move is about. Search first with
   `proxy_search` or check a known id with `proxy_read` before inferring
-  absence. (`link_to` is the legacy typed-object array alias; prefer `about: [node_id, ...]`.)
+  absence.
 
 Optional fields:
 
