@@ -174,11 +174,13 @@ JSON.
   candidate edge/belief changes against `goal_id`; supports `scope` and `limit`).
 
 ### 5. `proxy_mutate` & `proxy_moves_propose`
-- **`proxy_mutate`:** Single or batched `upsert_nodes`, `append_entries`
-  (with optional `dedupe_key` to prevent patrol entry spam), `set_edges`, and
-  `remove_edges` (by `edge_id` or `(from_id, to_id, edge_type)`), with
-  post-write readback verification. A batch is not atomic: items commit one at
-  a time, and a failure lists the items that already committed.
+- **`proxy_mutate`:** One batch of `upsert_nodes`, `append_entries` (with
+  optional `dedupe_key` to prevent patrol entry spam), `update_entries`,
+  `set_edges`, and `remove_edges` (by `edge_id` or `(from_id, to_id,
+  edge_type)`). The whole request is checked before anything is written, then
+  the ops run in order under one lock, and each receipt is read back after its
+  write. There is no rollback: an op that fails at the graph stops the batch
+  and the error lists the ops that already committed.
 - **`proxy_moves_propose` / `proxy_moves_read`:** Propose, revise, and paginate
   Moves (see the `proxy-moves` skill for full card authoring rules).
 - **Utility & media tools:** `proxy_notify` (`title`, `body`, optional `data`)
