@@ -1,0 +1,79 @@
+:root {
+  --bg: #050308;
+  --bg-raised: #120A0F;
+  --surface: #1A1217;
+  --surface-hover: #241A1F;
+  --border: #33292E;
+  --border-subtle: #241C21;
+  --text-primary: #F5EDE0;
+  --text-secondary: #D1CCBF;
+  --text-tertiary: #8C857A;
+  --accent: #FFB347;
+  --success: #66BF8C;
+  --error: #F24D4D;
+  --info: #8CA6BF;
+  --blocked: #D95C2E;
+  --deep-green: #0D5957;
+  --mono: "SF Mono", ui-monospace, Menlo, Monaco, monospace;
+}
+
+* { margin: 0; box-sizing: border-box; }
+
+body {
+  /* The host card is the surface — stay transparent so its chrome shows. */
+  background: transparent;
+  color: var(--text-primary);
+  font: 13px/1.5 var(--mono);
+  padding: 12px;
+}
+
+h1 { font-size: 15px; font-weight: 600; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.metric {
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.bar {
+  height: 8px;
+  background: var(--bg-raised);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar > div {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.log {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+
+.ok { color: var(--success); }
+.err { color: var(--error); }
+.dim { color: var(--text-tertiary); }
+
+/* Root wrapper: the host card is the frame — fill it edge to edge. */
+.content { padding: 14px 16px; }
