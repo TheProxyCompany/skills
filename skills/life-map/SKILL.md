@@ -4,8 +4,8 @@ description: >
   Work with Proxy's Life Map, the user's personal knowledge graph. Use when
   reading or updating life context, projects, goals, relationships, blockers,
   priorities, decisions, or graph-backed memory through Proxy tools such as
-  proxy_overview, proxy_list, proxy_search, proxy_recent, proxy_prioritize,
-  proxy_create_move, proxy_create, proxy_update, and proxy_link.
+  proxy_search, proxy_read, proxy_query, proxy_analyze, proxy_simulate,
+  proxy_mutate, proxy_moves_propose, and proxy_moves_read.
 ---
 
 # Life Map
@@ -20,20 +20,24 @@ dependencies, leverage, topology. It is a terrain map, not a feed.
 ## Core Principles
 
 **Explore before acting.** Check the Life Map before making claims about the
-user's world. Use `proxy_search` to find relevant nodes, `proxy_overview` for
-the big picture, `proxy_recent` for recent changes, and `proxy_prioritize` for
-highest-leverage work.
+user's world. Start with `proxy_search` (hybrid BM25 + semantic embedding +
+exact-ID fast path) to locate nodes, `proxy_read` for bounded L0/L1/L2 detail
+and k-hop causal traversal, `proxy_query` for compact structured sweeps and
+overviews, and `proxy_analyze` for leverage, odds, and gradients.
 
 **Propose, do not impose.** Do not silently restructure a user's graph. For
-meaningful changes, create a Move with `proxy_create_move` so the user can
+meaningful changes, create a Move with `proxy_moves_propose` so the user can
 review and approve it.
 
-**Use direct writes sparingly.** `proxy_create`, `proxy_update`, and
-`proxy_link` are for explicit user requests, low-risk bookkeeping, or approved
-Move execution. When in doubt, propose the change as a Move.
+**Use direct writes sparingly.** `proxy_mutate` is for explicit user requests,
+low-risk bookkeeping, or approved Move execution. When in doubt, propose the
+change as a Move.
 
-**Log what matters.** Entries keep the graph alive. They are the journal:
-cheap, lightweight records attached to the things they are about.
+**Log what matters without polluting hubs.** Entries keep the graph alive, but
+automated patrols and repeated status checks should pass a deterministic
+`dedupe_key` (24-hour idempotent update window per `(about_id, author,
+dedupe_key)`) or update node properties directly instead of appending duplicate
+`update` entries.
 
 ## The 8-7-7 System
 
@@ -63,8 +67,10 @@ represent blockers, constraints, risks, pressure, or enabling context.
 **Concept.** An idea, principle, thesis, or framing that informs decisions but
 is not itself actionable.
 
-**File.** A reference to content-addressed storage: documents, images, PDFs,
-and other files.
+**File / Content Artifact.** Binary and media artifacts are stored via
+`proxy_store_content` (`proxy://content/...` URIs) or modeled as `entity`
+nodes. MCP `entity_type` parameters accept the 6 node kinds (`goal`, `action`,
+`entity`, `event`, `condition`, `concept`) plus `entry`.
 
 **Entry.** A journal record attached to nodes via `ABOUT` edges. Entries do not
 float; they belong to something.
@@ -87,7 +93,8 @@ produces.
 
 **FOR** expresses purpose or beneficiary. It answers why something exists.
 
-**IMPACTS** expresses weighted causal influence.
+**IMPACTS** expresses weighted causal influence (`weight` is set on `IMPACTS`
+edges only).
 
 Choose one of the seven edge types or leave the relationship unmodeled until it
 is clearer.
@@ -108,32 +115,88 @@ is clearer.
 
 **metric** records a quantitative snapshot.
 
-## Tool Patterns
+## v2 Tool Patterns (Progressive Disclosure & General DAG Primitives)
 
-Use `proxy_overview` when the user asks about the broad shape of their world,
-priorities, or current terrain.
+All v2 tools return compact text in `content[0].text` with `structuredContent`
+omitted by default (eliminating 2x-3x wire duplication). Pass `format: "json"`
+or `include_structured: true` only when a caller explicitly needs structured
+JSON.
 
-Use `proxy_search` before creating anything that may already exist.
+### 1. `proxy_search` (Primary Entry Point: Exact-ID + Hybrid BM25/Semantic + Structured Filters)
+- Exact ID and ID-prefix matches rank #1 immediately across nodes and entries.
+- Combines BM25 lexical ranking with semantic embeddings when available.
+- Chain structured DAG filters inline in the same call:
+  `entity_type` (or `kinds`), `phase` (`planned`, `doing`, `done`, `stopped`, or
+  `active`), `scope` (subtree root), `missing_causal_out: true`, `updated_since`,
+  `include_entries`, `hydrate: "none" | "l0"`, and `limit` (default `15`, max `50`).
 
-Use `proxy_list` for structured inspection by entity type, phase, or entry
-type.
+### 2. `proxy_read` (L0 / L1 / L2 Progressive Disclosure, Batch `ids`, and k-Hop Causal Walk)
+- **`entity_type` is optional:** pass `id` alone (`{"id": "grand-central"}`) and
+  the server auto-resolves across all node kinds and entries.
+- **L0 (`detail: "l0"`, default):** Returns a compact `< 2 KB` header (`id`,
+  `kind`, `name`, `phase`, `belief`, `updated_at`, bounded `description`),
+  `total_entries`, `children_count`, a 7-edge histogram (`about`, `for`, `has`,
+  `impacts`, `makes`, `needs`, `wants`), and causal edges only (default
+  `edges_limit: 12` on `l0`; `50` on `mode: "edges"`). Never dumps hundreds of
+  entries or children by default.
+- **L1 (`detail: "l1"`):** Adds paginated entries (`entries_limit` default `10`,
+  max `50`, `entries_offset`, `entries_since`, `entry_types`) and compact child
+  headers (`children_limit`).
+- **L2 (`detail: "l2"`):** Full untruncated content plus optional `depth: 1 | 2`
+  bounded k-hop causal DAG traversal (`makes`, `needs`, `for`, `impacts`,
+  `wants`, capped at 50 nodes) and `include_blockers: true`.
+- **Batch `ids: [...]`:** Hydrate up to 50 known IDs in a single call and a
+  single graph snapshot instead of N serial reads.
+- **Edge & blocker queries:** Pass `mode: "summary"` for a compact edge
+  histogram, `mode: "edges"` with `labels`/`edge_type`, `direction` (`"both"` |
+  `"from"` | `"to"`), `edges_limit`, and `edges_offset`, or `mode: "blockers"`
+  for active blockers (`max_nodes` default `25`, max `50`).
 
-Use `proxy_recent` when recency matters.
+### 3. `proxy_query` (Compact Patrol Sweeps, Recent Activity, and Overview)
+- **`mode: "list"` with `view: "compact"`:** Scans nodes in 1 call (default
+  `limit: 30`, max `200`) as one-line summaries with causal degree counts
+  (`sort: "updated_desc"` or `"causal_degree_asc"`, `missing_causal_out: true`,
+  `causal_in`, `causal_out`, `max_causal_edges`, `offset`, `limit`). Use this
+  for patrol sweeps instead of looping `proxy_read`.
+- **`mode: "overview"`:** Bird's-eye PageRank2 focus blocks plus structural
+  health and under-connected active nodes (`include_topology: true`).
+- **`mode: "recent"`:** Recently updated nodes and entries in a scope (`hours`,
+  default `24`).
 
-Use `proxy_prioritize` when the user asks what matters, what to do next, or
-where leverage is highest.
+### 4. `proxy_analyze` & `proxy_simulate` (Reality Engine Math)
+- **`proxy_analyze`:** Unified read-only solver (`mode: "prioritize" | "odds" |
+  "gradient" | "full"`). Pass `id` with `mode: "full"` to get odds (with stored
+  node beliefs and `zero_cut` diagnostics), active blockers, and top edge
+  gradients in one call. Supports `as_of` historical cutoffs, `scope`, `limit`,
+  and `leaf_only`.
+- **`proxy_simulate`:** Counterfactual solver (`mode: "complete"` with single
+  `id` or multi-node `complete_ids: [...]`, or `mode: "mutations"` scoring
+  candidate edge/belief changes against `goal_id`; supports `scope` and `limit`).
 
-Use `proxy_create_move` for proposed graph changes that should be reviewed
-before they become real.
-
-Use `proxy_create`, `proxy_update`, and `proxy_link` only when the user has
-clearly asked for a direct edit or when executing an approved Move.
+### 5. `proxy_mutate` & `proxy_moves_propose`
+- **`proxy_mutate`:** One batch of `upsert_nodes`, `append_entries` (with
+  optional `dedupe_key` to prevent patrol entry spam), `update_entries`,
+  `set_edges`, and `remove_edges` (by `edge_id` or `(from_id, to_id,
+  edge_type)`). The whole request is checked before anything is written, then
+  the ops run in order under one lock, and each receipt is read back after its
+  write. There is no rollback: an op that fails at the graph stops the batch
+  and the error lists the ops that already committed.
+- **`proxy_moves_propose` / `proxy_moves_read`:** Propose, revise, and paginate
+  Moves (see the `proxy-moves` skill for full card authoring rules).
+- **Utility & media tools:** `proxy_notify` (`title`, `body`, optional `data`)
+  sends a local user notification; `proxy_speakers` (`op: "list" | "name"`,
+  `speaker_id`, `name`, `evidence_item_id`) inspects or labels Omni voice
+  speakers; `proxy_store_content` (`path` or `url`, optional `transform`) stores
+  binary/media artifacts as `proxy://content/...` URIs.
+- Destructive and human-gated tools (`proxy_delete`, `proxy_delete_move`,
+  `proxy_make_move`, `proxy_set_activation`) remain isolated behind human
+  authority gates.
 
 ## Recording Problems
 
 When the user reports something broken or wrong:
 
-1. Search for the node the problem belongs to.
+1. Search for the node the problem belongs to with `proxy_search`.
 2. Propose or create an action for the fix.
 3. Attach an `issue` entry describing the problem.
 4. Wire edges so the affected system HAS the fix action.
@@ -147,16 +210,17 @@ edges make the problem visible to prioritization and future agents.
 ## Conversation Patterns
 
 - User reports a bug or problem: follow the recording pattern.
-- User mentions a project or task: search for an existing action, then offer to
+- User mentions a project or task: run `proxy_search` first, then offer to
   create or update.
 - User makes a decision: record a `decision` entry on the relevant node.
-- User asks what to focus on: run `proxy_prioritize`.
+- User asks what to focus on: run `proxy_analyze(mode: "prioritize")`.
 - User mentions a blocker: model it as a condition or action dependency.
 - Conversation produces an insight: record a `takeaway` entry.
-- Status changes: update the action phase.
-- Something happened: attach an `update` or `note` entry; create or update an
-  event only for a deadline, appointment, trip, launch window, or other bounded
-  time anchor.
+- Status changes: direct owner sessions can update `phase` via `proxy_mutate`;
+  agent seats propose phase transitions on existing nodes via `proxy_moves_propose`.
+- Something happened: attach an `update` or `note` entry (using `dedupe_key`
+  for recurring checks); create or update an event only for a deadline,
+  appointment, trip, launch window, or other bounded time anchor.
 - A measurement is taken: attach a `metric` entry to the relevant node.
-- User is deliberating: explore related graph context before suggesting a
-  change.
+- User is deliberating: explore related graph context via `proxy_read(depth: 1)`
+  before suggesting a change.
